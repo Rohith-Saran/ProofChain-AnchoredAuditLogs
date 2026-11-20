@@ -87,59 +87,166 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-          {/* Local SQLite Entry (Victim) */}
+          {/* Local SQLite Entry (Victim - Tampered / After State) */}
           <div
             style={{
-              border: "1px solid var(--line)",
+              border: "2px solid var(--bad)",
               borderRadius: "10px",
-              padding: "14px",
-              background: "var(--bg)",
+              padding: "16px",
+              background: "rgba(192, 57, 43, 0.04)",
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--bad)", marginBottom: "8px" }}>
-              VICTIM LOCAL STORE (SQLite)
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+              <span style={{ fontWeight: 800, fontSize: "0.85rem", color: "var(--bad)" }}>
+                VICTIM LOCAL STORE (After Tampering)
+              </span>
+              <span style={{ fontSize: "0.75rem", fontFamily: "var(--font-mono)", color: "var(--bad)", fontWeight: 600 }}>
+                Mutable SQLite
+              </span>
             </div>
             {local ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.8rem", fontFamily: "var(--font-mono)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "0.85rem", fontFamily: "var(--font-mono)" }}>
                 <div><strong>Seq:</strong> #{local.seq}</div>
                 <div><strong>Source:</strong> {local.source}</div>
-                <div><strong>Message:</strong> {local.message}</div>
-                <div><strong>Hash:</strong> <HashText hash={local.hash} /></div>
-                <div><strong>Prev:</strong> <HashText hash={local.prevHash} /></div>
+                <div
+                  style={{
+                    background: offHost && local.message !== offHost.message ? "rgba(192, 57, 43, 0.15)" : "transparent",
+                    padding: "4px 6px",
+                    borderRadius: "4px",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  <strong>Message:</strong> {local.message}
+                </div>
+                <div
+                  style={{
+                    background: offHost && local.hash !== offHost.hash ? "rgba(192, 57, 43, 0.15)" : "transparent",
+                    padding: "4px 6px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <strong>Hash:</strong> <HashText hash={local.hash} />
+                </div>
+                <div
+                  style={{
+                    background: offHost && local.prevHash !== offHost.prevHash ? "rgba(192, 57, 43, 0.15)" : "transparent",
+                    padding: "4px 6px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <strong>Prev:</strong> <HashText hash={local.prevHash} />
+                </div>
               </div>
             ) : (
-              <div style={{ color: "var(--bad)", fontStyle: "italic", fontSize: "0.9rem" }}>
-                [ROW COMPLETELY MISSING / DELETED]
+              <div
+                style={{
+                  color: "var(--bad)",
+                  background: "rgba(192, 57, 43, 0.08)",
+                  padding: "16px",
+                  borderRadius: "8px",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.5,
+                  fontWeight: 600,
+                }}
+              >
+                <div>[ROW COMPLETELY MISSING / DELETED]</div>
+                <div style={{ fontSize: "0.8rem", fontWeight: 400, marginTop: "6px", color: "var(--ink)" }}>
+                  Attacker ran <code>DELETE FROM logs WHERE seq = {verdictEntry.seq}</code> to erase evidence of this event.
+                </div>
               </div>
             )}
           </div>
 
-          {/* Off-Host Collector Record */}
+          {/* Off-Host Collector Record (Original / Before State) */}
           <div
             style={{
-              border: "1px solid var(--ok)",
+              border: "2px solid var(--ok)",
               borderRadius: "10px",
-              padding: "14px",
+              padding: "16px",
               background: "rgba(47, 125, 79, 0.04)",
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--ok)", marginBottom: "8px" }}>
-              OFF-HOST COLLECTOR (Immutable)
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+              <span style={{ fontWeight: 800, fontSize: "0.85rem", color: "var(--ok)" }}>
+                OFF-HOST COLLECTOR (Original Witness)
+              </span>
+              <span style={{ fontSize: "0.75rem", fontFamily: "var(--font-mono)", color: "var(--ok)", fontWeight: 600 }}>
+                Anchored to Chain
+              </span>
             </div>
             {offHost ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.8rem", fontFamily: "var(--font-mono)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "0.85rem", fontFamily: "var(--font-mono)" }}>
                 <div><strong>Seq:</strong> #{offHost.seq}</div>
                 <div><strong>Source:</strong> {offHost.source}</div>
-                <div><strong>Message:</strong> {offHost.message}</div>
-                <div><strong>Hash:</strong> <HashText hash={offHost.hash} /></div>
-                <div><strong>Prev:</strong> <HashText hash={offHost.prevHash} /></div>
+                <div
+                  style={{
+                    background: local && local.message !== offHost.message ? "rgba(47, 125, 79, 0.15)" : "transparent",
+                    padding: "4px 6px",
+                    borderRadius: "4px",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  <strong>Message:</strong> {offHost.message}
+                </div>
+                <div
+                  style={{
+                    background: local && local.hash !== offHost.hash ? "rgba(47, 125, 79, 0.15)" : "transparent",
+                    padding: "4px 6px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <strong>Hash:</strong> <HashText hash={offHost.hash} />
+                </div>
+                <div
+                  style={{
+                    background: local && local.prevHash !== offHost.prevHash ? "rgba(47, 125, 79, 0.15)" : "transparent",
+                    padding: "4px 6px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <strong>Prev:</strong> <HashText hash={offHost.prevHash} />
+                </div>
               </div>
             ) : (
-              <div style={{ color: "var(--ink-muted)", fontStyle: "italic", fontSize: "0.9rem" }}>
-                No record in collector (Inserted Line)
+              <div
+                style={{
+                  color: "var(--ink-muted)",
+                  background: "rgba(0,0,0,0.04)",
+                  padding: "16px",
+                  borderRadius: "8px",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.5,
+                }}
+              >
+                <div>[NO CORRESPONDING COLLECTOR ENTRY]</div>
+                <div style={{ fontSize: "0.8rem", marginTop: "6px" }}>
+                  This line was injected directly into SQLite without passing through the logging agent pipeline.
+                </div>
               </div>
             )}
           </div>
+        </div>
+
+        {/* Forensic Proof Note */}
+        <div
+          style={{
+            padding: "10px 14px",
+            borderRadius: "8px",
+            background: "rgba(59, 76, 192, 0.08)",
+            border: "1px solid var(--chain)",
+            fontSize: "0.82rem",
+            color: "var(--ink)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>
+            <strong>Cryptographic Evidence:</strong> Tampering detected via on-chain Merkle root validation & dual-store cross check.
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--chain)" }}>
+            CERT-In Incident Pack Provable
+          </span>
         </div>
       </div>
     </div>

@@ -103,6 +103,9 @@ Reads the victim's SQLite logs (read-only) + the off-host collector + on-chain b
 - `GET /api/verify/batch/:id` - just one on-chain batch's entries + its root/lastChainHash check (attack console diff view)
 - `GET /api/verify/baseline` - what a plain hash chain (no blockchain, no collector) would conclude: `{ ok, brokenLinks }` — this is the "obvious fix fails" demo
 - `GET /api/silence` - silence status alone (cheap)
+- `GET /api/attacks` - lists all 8 supported attacks and their specifications
+- `POST /api/attacks/run/:id` - execute attack 1-8 against live victim system (or body `{ attackId, ... }`)
+- `POST /api/attacks/reset` - restore victim SQLite store from pristine off-host collector copy
 - `GET /api/evidence/export` - real CERT-In evidence pack (wraps `evidence/src/exportPack.ts`
   against the live victim + collector DBs and on-chain state): `{ version, entries (with
   Merkle proofs, tampered flags), batches, stats, ... }` — see `evidence/src/exportPack.ts`

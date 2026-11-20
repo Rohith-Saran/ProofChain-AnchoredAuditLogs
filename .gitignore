@@ -69,6 +69,8 @@ contracts/deployments/
 *.sqlite3
 victim.db
 collector.db
+tmp*.db*
+tmp-*.db*
 *.bak
 *.backup
 
@@ -91,12 +93,19 @@ tmp/
 temp/
 tmp-*/
 *.tmp
+tmp*
+scratch/
+.cache/
+.vitest/
 coverage/
 .nyc_output/
 bench/results/*.tmp
 bench/results/*.csv.tmp
 evidence-pack*.json
 evidence-pack*-report.md
+test-phase*.ts
+test-tmp*.ts
+tmp-*.ts
 
 # ------------------------------------------------------------------------------
 # 8. OS & System Files

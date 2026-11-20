@@ -106,6 +106,65 @@ export function createVerifierApp() {
     }
   });
 
+  // M3: Adversarial Attack Execution Endpoints (attacks 1 through 8)
+  async function loadAttackRunner() {
+    const attackRunnerPath = path.resolve(import.meta.dirname, "../../attacks/src/attackRunner.ts");
+    return import(pathToFileURL(attackRunnerPath).href);
+  }
+
+  // Get list of all available attacks and their specifications
+  app.get("/api/attacks", async (req, res) => {
+    try {
+      const { ATTACK_DEFINITIONS } = await loadAttackRunner();
+      res.json({ attacks: ATTACK_DEFINITIONS });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  // Execute an attack by ID (1 through 8)
+  app.post("/api/attacks/run/:id", async (req, res) => {
+    try {
+      const attackId = Number(req.params.id);
+      const { executeAttack } = await loadAttackRunner();
+      const result = await executeAttack(attackId, {
+        victimDbPath,
+        collectorDbPath,
+        ...req.body,
+      });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  // Alias for running attack via body
+  app.post("/api/attacks/run", async (req, res) => {
+    try {
+      const attackId = Number(req.body.attackId);
+      const { executeAttack } = await loadAttackRunner();
+      const result = await executeAttack(attackId, {
+        victimDbPath,
+        collectorDbPath,
+        ...req.body,
+      });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  // Reset victim DB back to untampered state from off-host collector
+  app.post("/api/attacks/reset", async (req, res) => {
+    try {
+      const { resetVictimDatabase } = await loadAttackRunner();
+      const result = resetVictimDatabase(victimDbPath, collectorDbPath);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
   return { app };
 }
 

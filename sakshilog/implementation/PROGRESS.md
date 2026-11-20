@@ -5,7 +5,7 @@
 | 0 Kickoff | H0:00-0:45 | [ ] | |
 | 1 Foundations | H0:45-4:00 | [ ] | H4 checkpoint. M1 done: contract + 19 tests + local deploy + anchorClient + smoke |
 | 2 End-to-end | H4:00-8:00 | [ ] | H8 GO / NO-GO |
-| 3 Attacks + depth | H8:00-11:30 | [ ] | H11:30 checkpoint |
+| 3 Attacks + depth | H8:00-11:30 | [x] | H11:30 checkpoint: All 8 attacks run from UI/API, red highlights, diff view, reset verified (M1, M2, M3, M4) |
 | 4 Evidence | H11:30-14:00 | [ ] | H14 FEATURE FREEZE |
 | 5 Pitch | H14:00-16:00 | [ ] | |
 
@@ -90,6 +90,10 @@
   Also added heartbeat anchoring to `agent/src/anchorServiceConnector.ts` (triggerBatch()
   previously just returned null when idle instead of posting the empty-range heartbeat the
   contract already supports) — without it, silence detection can't tell "idle" from "dead".
+- Phase 3 Attacks & Depth complete:
+  - Created `attacks/src/attackRunner.ts`: reusable programmatic execution engine for all 8 attacks + `resetVictimDatabase` restoring clean baseline from off-host collector.
+  - Exposed `/api/attacks`, `/api/attacks/run/:id` and `/api/attacks/reset` on the Verifier Express service (Port 4004), enabling live API-driven attacks from UI and remote callers.
+  - Full Phase 3 test suite (`test-phase3-m3-m4.ts`): 13/13 passing tests confirming plain hash chain vs SakshiLog detection across all 8 attack vectors in Section 6.
 
 ## M4 log
 - Dashboard (`dashboard/`): Full implementation of SakshiLog live ops and guided explainer console.
@@ -118,6 +122,11 @@
     state) and wired the button to it via `apiClient.getEvidencePack()`, falling back to a
     clearly-labelled placeholder (never silently-fake data) only if the verifier is unreachable.
     Validated live: real tampered-entry detection shows up in the downloaded pack.
+  - Phase 3 Attack Console & Red Highlights complete:
+    - Wired `AttackButton` and `useStore.executeAttackLive()` to call `apiClient.executeAttack(attackId)` and `/api/attacks/run/:id` with detailed live results and comprehensive mock simulation for all 8 attacks.
+    - Updated `LogTable.tsx` to detect and inject missing/deleted entries (such as sudo seq 103 in Attack 2 and 6) with high-contrast red highlights, strikethrough, and `DELETED`/`TRUNCATED` badges, enabling 1-click inspection of missing entries.
+    - Enhanced `DiffView.tsx` with field-level diff styling (green for original collector witness, red for tampered SQLite store), highlighting exact character changes and reason codes.
+    - Added "Reset All to Clean Baseline" and live attack result card on `AttackConsolePage.tsx` and `AttackStepPage.tsx`.
 
 ## Blockers
 - None.

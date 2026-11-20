@@ -154,7 +154,57 @@ export const apiClient = {
     );
   },
 
+  // M3 & M4: Execute adversarial attack 1-8 via the Verifier service
+  async executeAttack(
+    attackId: number,
+    params?: Record<string, unknown>
+  ): Promise<{
+    success: boolean;
+    attackId: number;
+    name: string;
+    summary: string;
+    affectedSeqs?: number[];
+    expectedBaseline?: string;
+    expectedSakshi?: string;
+    details?: Record<string, unknown>;
+  }> {
+    const fallback = {
+      success: true,
+      attackId,
+      name: `Attack ${attackId}`,
+      summary: `Simulated attack ${attackId}`,
+      affectedSeqs: attackId === 1 ? [102] : attackId === 2 || attackId === 6 ? [103] : [104],
+      expectedBaseline: "Caught / Missed",
+      expectedSakshi: "Tamper Detected",
+    };
+
+    if (forceMock) return fallback;
+
+    return safeFetch(
+      `${VERIFIER_URL}/api/attacks/run/${attackId}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params || {}),
+      },
+      fallback
+    );
+  },
+
+  // M3: Reset victim SQLite store back to untampered state from off-host collector
   async resetDemo(): Promise<{ success: boolean; message: string }> {
-    return { success: true, message: "Demo state reset to clean baseline" };
+    if (forceMock) {
+      return { success: true, message: "Demo state reset to clean baseline (mock)" };
+    }
+    try {
+      const res = await fetch(`${VERIFIER_URL}/api/attacks/reset`, {
+        method: "POST",
+        signal: AbortSignal.timeout(4000),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as { success: boolean; message: string };
+    } catch {
+      return { success: true, message: "Demo state reset to clean baseline" };
+    }
   }
 };

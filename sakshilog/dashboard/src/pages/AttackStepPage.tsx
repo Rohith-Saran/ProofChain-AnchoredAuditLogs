@@ -4,6 +4,7 @@ import { useStore } from "../store/useStore";
 import { ATTACKS } from "../mock/data";
 import { Stepper } from "../components/Stepper";
 import { LaneDiagram } from "../components/LaneDiagram";
+import { DiffView } from "../components/DiffView";
 import { PulseIcon } from "../components/Icons";
 
 export const AttackStepPage: React.FC = () => {
@@ -16,6 +17,15 @@ export const AttackStepPage: React.FC = () => {
   const setStepIndex = useStore((s) => s.setStepIndex);
   const executeAttackLive = useStore((s) => s.executeAttackLive);
   const attackInProgress = useStore((s) => s.attackInProgress);
+  const lastAttackResult = useStore((s) => s.lastAttackResult);
+  const verification = useStore((s) => s.verification);
+  const selectedLogSeq = useStore((s) => s.selectedLogSeq);
+  const setSelectedLogSeq = useStore((s) => s.setSelectedLogSeq);
+
+  const selectedEntryVerdict = React.useMemo(() => {
+    if (!selectedLogSeq || !verification?.entries) return null;
+    return verification.entries.find((e) => e.seq === selectedLogSeq) || null;
+  }, [selectedLogSeq, verification]);
 
   // Sync route param with attack
   useEffect(() => {
@@ -112,6 +122,67 @@ export const AttackStepPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Live Attack Execution Result Banner */}
+      {lastAttackResult && lastAttackResult.attackId === selectedAttack.id && (
+        <div
+          style={{
+            background: "rgba(192, 57, 43, 0.08)",
+            border: "1px solid var(--bad)",
+            borderRadius: "var(--radius)",
+            padding: "12px 18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "12px",
+          }}
+        >
+          <div>
+            <strong style={{ color: "var(--bad)", fontSize: "0.95rem" }}>
+              Live Intrusion Result:
+            </strong>{" "}
+            <span style={{ fontSize: "0.9rem" }}>{lastAttackResult.summary}</span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {lastAttackResult.affectedSeqs && lastAttackResult.affectedSeqs.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedLogSeq(lastAttackResult.affectedSeqs![0])}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--bad)",
+                  background: "var(--bad)",
+                  color: "#fff",
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Inspect Forensic Diff #{lastAttackResult.affectedSeqs[0]}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => navigate("/live")}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: "1px solid var(--line)",
+                background: "var(--surface)",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Open Live Console
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Stepper with Caption and Prev/Next */}
       <Stepper
         currentStep={currentStepIndex}
@@ -133,6 +204,14 @@ export const AttackStepPage: React.FC = () => {
         <LaneDiagram lane={currentStep.plainChainLane} isRightLane={false} />
         <LaneDiagram lane={currentStep.sakshiLane} isRightLane={true} />
       </div>
+
+      {/* Forensic Diff Modal */}
+      {selectedEntryVerdict && (
+        <DiffView
+          verdictEntry={selectedEntryVerdict}
+          onClose={() => setSelectedLogSeq(null)}
+        />
+      )}
     </div>
   );
 };
