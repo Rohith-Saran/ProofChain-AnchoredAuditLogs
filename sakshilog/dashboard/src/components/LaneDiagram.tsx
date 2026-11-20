@@ -20,11 +20,11 @@ export const LaneDiagram: React.FC<LaneDiagramProps> = ({ lane, isRightLane = fa
         background: "var(--surface)",
         borderRadius: "var(--radius)",
         border: `2px solid ${isRightLane ? "var(--chain)" : "var(--line)"}`,
-        padding: "20px",
+        padding: "18px",
         boxShadow: "var(--shadow)",
         display: "flex",
         flexDirection: "column",
-        gap: "16px",
+        gap: "14px",
         transition: "all 0.3s ease",
       }}
     >
@@ -32,7 +32,7 @@ export const LaneDiagram: React.FC<LaneDiagramProps> = ({ lane, isRightLane = fa
         <h3
           style={{
             fontFamily: "var(--font-display)",
-            fontSize: "1.2rem",
+            fontSize: "1.15rem",
             color: isRightLane ? "var(--chain)" : "var(--ink)",
             display: "flex",
             alignItems: "center",
@@ -55,14 +55,14 @@ export const LaneDiagram: React.FC<LaneDiagramProps> = ({ lane, isRightLane = fa
         )}
       </div>
 
-      {/* SVG Canvas for Isometric Architecture & Hash-chaining */}
+      {/* SVG Canvas for Architecture & Hash Chain */}
       <div
         style={{
           width: "100%",
           background: "var(--bg)",
           borderRadius: "10px",
           border: "1px solid var(--line)",
-          padding: "12px",
+          padding: "10px",
           position: "relative",
           overflow: "hidden",
         }}
@@ -76,104 +76,130 @@ export const LaneDiagram: React.FC<LaneDiagramProps> = ({ lane, isRightLane = fa
           {/* Victim Server Boundary */}
           <g className="server-container">
             <rect
-              x="20"
-              y="20"
-              width="240"
-              height="180"
-              rx="12"
+              x="14"
+              y="14"
+              width="248"
+              height="192"
+              rx="10"
               fill="rgba(255, 255, 255, 0.7)"
               stroke={isCompromised ? "var(--bad)" : isOffline ? "var(--ink-muted)" : "var(--line)"}
-              strokeWidth={isCompromised ? "2.5" : "1.5"}
+              strokeWidth={isCompromised ? "2" : "1.5"}
               strokeDasharray={isOffline ? "4 4" : undefined}
-              style={{ transition: "stroke 0.3s ease" }}
             />
+
+            {/* Server Header: Title + Status Pill strictly inside boundary */}
             <text
-              x="32"
-              y="40"
+              x="24"
+              y="32"
               fontFamily="var(--font-display)"
-              fontSize="12"
-              fontWeight="600"
+              fontSize="10"
+              fontWeight="700"
               fill={isCompromised ? "var(--bad)" : "var(--ink)"}
             >
-              Victim Server (SQLite) {isCompromised && "⚠️ ROOT COMPROMISED"} {isOffline && "(DAEMON KILLED)"}
+              Victim Server (SQLite)
             </text>
+
+            {isCompromised ? (
+              <g>
+                <rect x="146" y="19" width="108" height="18" rx="4" fill="rgba(192, 57, 43, 0.15)" stroke="var(--bad)" strokeWidth="1" />
+                <text x="200" y="31.5" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="7.5" fontWeight="700" fill="var(--bad)">
+                  ⚠️ ROOT COMPROMISED
+                </text>
+              </g>
+            ) : isOffline ? (
+              <g>
+                <rect x="156" y="19" width="98" height="18" rx="4" fill="rgba(107, 95, 85, 0.15)" stroke="var(--ink-muted)" strokeWidth="1" />
+                <text x="205" y="31.5" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="7.5" fontWeight="700" fill="var(--ink-muted)">
+                  ✕ DAEMON DEAD
+                </text>
+              </g>
+            ) : (
+              <g>
+                <rect x="176" y="19" width="78" height="18" rx="4" fill="rgba(47, 125, 79, 0.12)" stroke="var(--ok)" strokeWidth="1" />
+                <text x="215" y="31.5" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="7.5" fontWeight="700" fill="var(--ok)">
+                  ✓ SECURE
+                </text>
+              </g>
+            )}
           </g>
 
-          {/* Right Lane Architecture Additions: Collector & Chain */}
-          {isRightLane && (
+          {/* Right-Hand Architecture: Active for SakshiLog, Placeholder for Plain */}
+          {isRightLane ? (
             <>
               {/* Off-Host Collector Box */}
               <g className="collector-container">
-                <rect
-                  x="280"
-                  y="20"
-                  width="160"
-                  height="80"
-                  rx="10"
-                  fill="rgba(47, 125, 79, 0.08)"
-                  stroke="var(--ok)"
-                  strokeWidth="1.5"
-                />
-                <text x="292" y="42" fontFamily="var(--font-display)" fontSize="11" fontWeight="600" fill="var(--ok)">
+                <rect x="274" y="14" width="174" height="90" rx="8" fill="rgba(47, 125, 79, 0.08)" stroke="var(--ok)" strokeWidth="1.5" />
+                <text x="286" y="34" fontFamily="var(--font-display)" fontSize="11" fontWeight="700" fill="var(--ok)">
                   Collector (Port 4002)
                 </text>
-                <text x="292" y="60" fontFamily="var(--font-mono)" fontSize="9" fill="var(--ink-muted)">
+                <text x="286" y="52" fontFamily="var(--font-mono)" fontSize="8.5" fill="var(--ink-muted)">
                   Off-host immutable copy
                 </text>
-                <text x="292" y="76" fontFamily="var(--font-mono)" fontSize="9" fill="var(--ok)">
+                <text x="286" y="68" fontFamily="var(--font-mono)" fontSize="8.5" fill="var(--ok)">
                   Live push verification
                 </text>
               </g>
 
               {/* Blockchain Anchor Box */}
               <g className="chain-container">
-                <rect
-                  x="280"
-                  y="120"
-                  width="160"
-                  height="80"
-                  rx="10"
-                  fill="rgba(59, 76, 192, 0.08)"
-                  stroke="var(--chain)"
-                  strokeWidth="1.5"
-                />
-                <text x="292" y="142" fontFamily="var(--font-display)" fontSize="11" fontWeight="600" fill="var(--chain)">
+                <rect x="274" y="116" width="174" height="90" rx="8" fill="rgba(59, 76, 192, 0.08)" stroke="var(--chain)" strokeWidth="1.5" />
+                <text x="286" y="136" fontFamily="var(--font-display)" fontSize="11" fontWeight="700" fill="var(--chain)">
                   Blockchain (Hardhat)
                 </text>
-                <text x="292" y="160" fontFamily="var(--font-mono)" fontSize="9" fill="var(--ink-muted)">
+                <text x="286" y="154" fontFamily="var(--font-mono)" fontSize="8.5" fill="var(--ink-muted)">
                   Batch #{lane.anchor?.batchId ?? 2} Root:
                 </text>
-                <text x="292" y="176" fontFamily="var(--font-mono)" fontSize="9" fontWeight="bold" fill={lane.anchor?.status === "mismatch" ? "var(--bad)" : "var(--chain)"}>
+                <text x="286" y="170" fontFamily="var(--font-mono)" fontSize="8" fontWeight="bold" fill={lane.anchor?.status === "mismatch" ? "var(--bad)" : "var(--chain)"}>
                   {lane.anchor?.root ?? "0x5e4b…fe02"}
                 </text>
               </g>
 
-              {/* Sync Connector Line */}
-              <line
-                x1="260"
-                y1="60"
-                x2="280"
-                y2="60"
-                stroke="var(--ok)"
-                strokeWidth="1.5"
-                strokeDasharray="3 3"
-              />
-              <line
-                x1="260"
-                y1="160"
-                x2="280"
-                y2="160"
-                stroke="var(--chain)"
-                strokeWidth="1.5"
-                strokeDasharray="3 3"
-              />
+              {/* Connector Lines */}
+              <line x1="262" y1="59" x2="274" y2="59" stroke="var(--ok)" strokeWidth="1.5" strokeDasharray="3 3" />
+              <line x1="262" y1="161" x2="274" y2="161" stroke="var(--chain)" strokeWidth="1.5" strokeDasharray="3 3" />
+            </>
+          ) : (
+            <>
+              {/* Missing Collector Warning Box */}
+              <g className="missing-collector">
+                <rect x="274" y="14" width="174" height="90" rx="8" fill="rgba(0, 0, 0, 0.02)" stroke="var(--line)" strokeWidth="1" strokeDasharray="4 4" />
+                <text x="286" y="34" fontFamily="var(--font-display)" fontSize="11" fontWeight="600" fill="var(--bad)">
+                  No Off-Host Collector
+                </text>
+                <text x="286" y="52" fontFamily="var(--font-mono)" fontSize="8.5" fill="var(--ink-muted)">
+                  Single point of failure
+                </text>
+                <text x="286" y="68" fontFamily="var(--font-mono)" fontSize="8" fill="var(--bad)">
+                  ✕ Attacker can delete rows
+                </text>
+              </g>
+
+              {/* Missing Blockchain Warning Box */}
+              <g className="missing-chain">
+                <rect x="274" y="116" width="174" height="90" rx="8" fill="rgba(0, 0, 0, 0.02)" stroke="var(--line)" strokeWidth="1" strokeDasharray="4 4" />
+                <text x="286" y="136" fontFamily="var(--font-display)" fontSize="11" fontWeight="600" fill="var(--bad)">
+                  No Blockchain Anchor
+                </text>
+                <text x="286" y="154" fontFamily="var(--font-mono)" fontSize="8.5" fill="var(--ink-muted)">
+                  No consensus root
+                </text>
+                <text x="286" y="170" fontFamily="var(--font-mono)" fontSize="8" fill="var(--bad)">
+                  ✕ Recomputed hashes accepted
+                </text>
+              </g>
+
+              {/* Blocked Connector Lines with ✕ */}
+              <line x1="262" y1="59" x2="274" y2="59" stroke="var(--line)" strokeWidth="1" strokeDasharray="2 2" />
+              <text x="268" y="62" textAnchor="middle" fontSize="9" fill="var(--bad)">✕</text>
+              <line x1="262" y1="161" x2="274" y2="161" stroke="var(--line)" strokeWidth="1" strokeDasharray="2 2" />
+              <text x="268" y="164" textAnchor="middle" fontSize="9" fill="var(--bad)">✕</text>
             </>
           )}
 
           {/* Log Chain Blocks */}
           <g className="log-chain-blocks">
             {lane.blocks.slice(0, 5).map((block, idx) => {
-              const y = 56 + idx * 26;
+              const y = 46 + idx * 30;
               const isTampered = block.status === "tampered" || block.status === "deleted";
               const isRecomputed = block.status === "recomputed";
               const isHighlighted = block.status === "highlighted";
@@ -187,50 +213,38 @@ export const LaneDiagram: React.FC<LaneDiagramProps> = ({ lane, isRightLane = fa
                 : "var(--ink)";
 
               return (
-                <g key={block.seq} style={{ transition: "all 0.3s ease" }}>
-                  {/* Arrow from previous block */}
+                <g key={block.seq}>
                   {idx > 0 && (
-                    <line
-                      x1="60"
-                      y1={y - 12}
-                      x2="60"
-                      y2={y}
-                      stroke={blockColor}
-                      strokeWidth="1.5"
-                      markerEnd="url(#arrow)"
-                    />
+                    <line x1="45" y1={y - 8} x2="45" y2={y} stroke={blockColor} strokeWidth="1.5" />
                   )}
 
-                  {/* Block Rectangle */}
                   <rect
-                    x="30"
+                    x="22"
                     y={y}
-                    width="220"
-                    height="20"
+                    width="232"
+                    height="22"
                     rx="4"
                     fill={isTampered ? "rgba(192, 57, 43, 0.15)" : isRecomputed ? "rgba(199, 134, 26, 0.15)" : "#ffffff"}
                     stroke={blockColor}
                     strokeWidth={isTampered || isHighlighted ? "2" : "1"}
                   />
 
-                  {/* Block Seq and Label */}
                   <text
-                    x="38"
-                    y={y + 14}
+                    x="30"
+                    y={y + 15}
                     fontFamily="var(--font-mono)"
-                    fontSize="9"
+                    fontSize="8.5"
                     fontWeight="600"
                     fill={blockColor}
                   >
-                    #{block.seq} {block.label}
+                    #{block.seq} {block.label.length > 18 ? block.label.slice(0, 16) + "…" : block.label}
                   </text>
 
-                  {/* Block Hash */}
                   <text
-                    x="180"
-                    y={y + 14}
+                    x="174"
+                    y={y + 15}
                     fontFamily="var(--font-mono)"
-                    fontSize="8"
+                    fontSize="7.5"
                     fill={isTampered ? "var(--bad)" : "var(--ink-muted)"}
                   >
                     {block.hash}
@@ -243,14 +257,7 @@ export const LaneDiagram: React.FC<LaneDiagramProps> = ({ lane, isRightLane = fa
       </div>
 
       {/* Details List */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "8px",
-          fontSize: "0.875rem",
-        }}
-      >
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.85rem" }}>
         <div style={{ fontWeight: 600, color: "var(--ink)" }}>Verification Details:</div>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: "var(--ink-muted)" }}>
           {isRightLane ? (
@@ -263,10 +270,10 @@ export const LaneDiagram: React.FC<LaneDiagramProps> = ({ lane, isRightLane = fa
             <div>
               Local Hash Continuity:{" "}
               <span style={{ color: lane.overallVerdict?.verdict === "OK" ? "var(--ok)" : "var(--bad)" }}>
-                {lane.overallVerdict?.verdict === "OK" ? "SELF-CONSISTENT" : "BROKEN"}
+                {lane.overallVerdict?.verdict === "OK" ? "SELF-CONSISTENT (VULNERABLE)" : "BROKEN"}
               </span>
               <br />
-              External Anchor: <span style={{ color: "var(--bad)" }}>None (Vulnerable to recompute)</span>
+              External Anchor: <span style={{ color: "var(--bad)" }}>None (No consensus validation)</span>
             </div>
           )}
         </div>

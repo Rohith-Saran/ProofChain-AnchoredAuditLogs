@@ -4,7 +4,6 @@ import { useStore } from "../store/useStore";
 import { ATTACKS } from "../mock/data";
 import { AttackButton } from "../components/AttackButton";
 import { DiffView } from "../components/DiffView";
-import { ShieldIcon, PulseIcon, CheckIcon } from "../components/Icons";
 
 export const AttackConsolePage: React.FC = () => {
   const navigate = useNavigate();

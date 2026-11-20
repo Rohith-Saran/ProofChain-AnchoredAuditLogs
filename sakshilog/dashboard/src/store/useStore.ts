@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { LogEntry, Batch, VerificationResult, ConnectionStatus, SystemStatus, AttackMetadata } from "../types";
+import type { LogEntry, Batch, VerificationResult, ConnectionStatus, SystemStatus, AttackMetadata, Verdict } from "../types";
 import { apiClient, isMockMode, setMockMode } from "../api/client";
 import { realtime } from "../api/socket";
 import { MOCK_LOGS, MOCK_BATCHES, MOCK_VERIFICATION, ATTACKS } from "../mock/data";
@@ -338,7 +338,7 @@ export const useStore = create<AppState>((set, get) => ({
                 })),
                 {
                   seq: 103,
-                  verdict: "DELETED",
+                  verdict: "DELETED" as Verdict,
                   reason: 'Entry seq 103 is missing locally but present in off-host collector copy (message: "ubuntu : TTY=pts/0 ; COMMAND=/bin/bash")',
                   expectedHash: MOCK_LOGS.find((m) => m.seq === 103)?.hash,
                   actualHash: undefined,
@@ -489,7 +489,7 @@ export const useStore = create<AppState>((set, get) => ({
                 })),
                 {
                   seq: 105,
-                  verdict: "TRUNCATED",
+                  verdict: "TRUNCATED" as Verdict,
                   reason: "Entry seq 105 is missing locally and local log never continues past seq 104 (tail truncated)",
                   expectedHash: MOCK_LOGS.find((m) => m.seq === 105)?.hash,
                   batchId: 2,
@@ -497,7 +497,7 @@ export const useStore = create<AppState>((set, get) => ({
                 },
                 {
                   seq: 106,
-                  verdict: "TRUNCATED",
+                  verdict: "TRUNCATED" as Verdict,
                   reason: "Entry seq 106 is missing locally (tail truncated)",
                   expectedHash: MOCK_LOGS.find((m) => m.seq === 106)?.hash,
                   batchId: 2,
@@ -582,7 +582,7 @@ export const useStore = create<AppState>((set, get) => ({
                 },
                 {
                   seq: 103,
-                  verdict: "DELETED",
+                  verdict: "DELETED" as Verdict,
                   reason: 'Entry seq 103 is missing locally but present in off-host collector copy (message: "ubuntu : TTY=pts/0 ; COMMAND=/bin/bash")',
                   expectedHash: MOCK_LOGS[2].hash,
                   batchId: 2,
