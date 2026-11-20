@@ -1,0 +1,19 @@
+{
+  "name": "@sakshilog/anchor-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Anchors SakshiLog Merkle roots to AnchorRegistry; client library + (Phase 2) batching service",
+  "main": "src/anchorClient.ts",
+  "scripts": {
+    "smoke": "tsx src/smoke.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ethers": "^6.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.8.3"
+  }
+}

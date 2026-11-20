@@ -8,4 +8,5 @@ build/
 contracts/artifacts/
 contracts/cache/
 contracts/typechain-types/
+contracts/deployments/
 bench/results/*.tmp

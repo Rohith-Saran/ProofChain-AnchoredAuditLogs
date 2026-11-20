@@ -18,7 +18,15 @@ The Big Hack 2.0, Track 02 (Cybersecurity and blockchain), problem B3.
 | docs/ | M4 | Slides, pitch notes, judge Q&A |
 
 ## Run
-To be added (start.sh or docker compose).
+Full start script to come (start.sh or docker compose). Blockchain part (M1):
+```
+cd contracts && npm install
+npm test                      # 19 contract tests (npm run test:gas for the gas table)
+npm run node                  # terminal 1: local chain on :8545 (restart = full reset)
+npm run deploy:local          # terminal 2: deploys, writes contracts/deployments/localhost.json
+cd ../anchor-service && npm install
+npm run smoke                 # anchors, reads back, checks overwrite/skip/non-anchorer are rejected
+```
 
 ## Data
 State clearly which data in the demo is real and which is synthetic.
