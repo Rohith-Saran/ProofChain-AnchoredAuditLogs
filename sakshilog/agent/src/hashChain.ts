@@ -31,6 +31,8 @@ export class HashChain {
   private defaultHost: string;
   private readonly db: AgentDB;
   private readonly collector?: CollectorClient;
+  /** Set by server.ts to push each new entry out over Socket.IO ("log" event). */
+  onEntries: ((entries: LogEntry[]) => void) | null = null;
 
   constructor(
     db: AgentDB,
@@ -87,6 +89,7 @@ export class HashChain {
     if (this.collector) {
       this.collector.pushEntry(entry);
     }
+    this.onEntries?.([entry]);
 
     return entry;
   }
@@ -135,6 +138,7 @@ export class HashChain {
         this.collector.pushEntry(entry);
       }
     }
+    this.onEntries?.(entries);
 
     return entries;
   }

@@ -1,4 +1,6 @@
 import express from "express";
+import { createServer } from "node:http";
+import { Server as SocketIOServer } from "socket.io";
 import { AgentDB } from "./db.ts";
 import { HashChain } from "./hashChain.ts";
 import { CollectorClient } from "./collectorClient.ts";
@@ -32,6 +34,20 @@ export function createAgentApp(dbFilePath = DB_PATH) {
     if (req.method === "OPTIONS") return res.sendStatus(200);
     next();
   });
+
+  // Realtime push for the dashboard: "log" on every new entry, "batch" on every anchor
+  // (normal batch or heartbeat). No request/response here — purely outbound events.
+  const httpServer = createServer(app);
+  const io = new SocketIOServer(httpServer, { cors: { origin: "*" } });
+  io.on("connection", (socket) => {
+    console.log(`[SakshiLog Agent] dashboard connected: ${socket.id}`);
+  });
+  chain.onEntries = (entries) => {
+    for (const entry of entries) io.emit("log", entry);
+  };
+  connector.onBatch = (batch) => {
+    io.emit("batch", batch);
+  };
 
   // Health endpoint
   app.get("/health", (req, res) => {
@@ -118,13 +134,13 @@ export function createAgentApp(dbFilePath = DB_PATH) {
     res.json({ success: true, batch });
   });
 
-  return { app, db, chain, connector, loadGen, collector };
+  return { app, httpServer, io, db, chain, connector, loadGen, collector };
 }
 
 if (process.argv[1] && process.argv[1].endsWith("server.ts") || process.argv[1]?.endsWith("server.js")) {
-  const { app, connector } = createAgentApp();
+  const { httpServer, connector } = createAgentApp();
   connector.start().then(() => {
-    app.listen(PORT, "0.0.0.0", () => {
+    httpServer.listen(PORT, "0.0.0.0", () => {
       console.log(`[SakshiLog Agent] Victim server listening on http://0.0.0.0:${PORT}`);
       console.log(`[SakshiLog Agent] SQLite database at ${DB_PATH}`);
       console.log(`[SakshiLog Agent] Forwarding off-host copies to ${COLLECTOR_URL}`);

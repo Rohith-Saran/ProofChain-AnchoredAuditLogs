@@ -23,6 +23,8 @@ export class AnchorConnector {
   private lastChainHash = "0".repeat(64);
   private readonly db: AgentDB;
   private readonly collector?: CollectorClient;
+  /** Set by server.ts to push each anchored batch out over Socket.IO ("batch" event). */
+  onBatch: ((batch: Batch) => void) | null = null;
 
   constructor(
     db: AgentDB,
@@ -138,6 +140,7 @@ export class AnchorConnector {
       if (this.collector) {
         await this.collector.notifyBatch(batch);
       }
+      this.onBatch?.(batch);
 
       return batch;
     } catch (err) {

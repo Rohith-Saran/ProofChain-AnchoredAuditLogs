@@ -42,8 +42,20 @@
   - Hash chaining on every write (`hash = sha256(seq | ts | host | source | message | prevHash)`) in `agent/src/hashChain.ts`.
   - High-throughput load generator (10 to 1,000 logs/sec) with smooth 100ms ticks in `agent/src/loadGenerator.ts`.
 - Phase 2 End-to-End Pipeline:
-  - Merkle batching every 5 s and AnchorRegistry connection in `agent/src/anchorServiceConnector.ts`.
-  - Off-host Collector (`collector/src/server.ts`, `collector/src/db.ts`) with immediate push queue from agent and batch recording.
+  - Merkle batching every 5 s and AnchorRegistry connection in `agent/src/anchorServiceConnector.ts`;
+    now prefers M1's anchor-service over ANCHOR_SERVICE_URL (graceful fallback to direct anchoring).
+  - Off-host Collector (`collector/src/server.ts`, `collector/src/db.ts`) with immediate push queue from agent and batch recording; batchId stored against every entry on anchor.
+  - Added Socket.IO to the agent (`agent/src/server.ts`, port 4001): `"log"` on every new entry
+    (write, simulate, or load generator — one hook in `HashChain`), `"batch"` on every anchor
+    (normal or heartbeat — one hook in `AnchorConnector`). This is what dashboard/src/api/socket.ts
+    was already built to connect to; without it the live console silently falls back to mock data.
+    Validated live with a socket.io-client smoke check — both events land in real time.
+  - Found (not yet fixed — flagged in INTERFACES.md "Known gap"): the verifier's actual JSON
+    response shape (M3) doesn't match what dashboard/src/types.ts expects (M4) — different field
+    names for SilenceAlert, EntryVerdict, BatchVerdict, and BaselineVerificationResult, plus
+    `result.ok` vs `result.summary.ok`. INTERFACES.md only ever froze the Verdict enum, not the
+    envelope, so the two sides diverged independently. Dashboard degrades to mock data silently
+    rather than crashing, so this is easy to miss in a demo — needs a pick-one-shape adapter fix.
 - Phase 3 Attacks & Depth:
   - Baseline mode toggle (`BASELINE_MODE=true` or POST `/api/baseline`) implemented: suppresses blockchain anchoring while maintaining plain SQLite hash chain, enabling the "obvious fix fails" demo.
 - Phase 4 Evidence:

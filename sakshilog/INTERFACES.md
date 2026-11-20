@@ -75,6 +75,11 @@ chain: 8545 | agent: 4001 | collector: 4002 | anchor-service: 4003 | verifier: 4
 - `POST /api/load/stop` - stop load generator
 - `POST /api/baseline` - toggle baseline mode `{ enabled: boolean }` (anchoring suspended, plain hash chain)
 - `POST /api/anchor/trigger` - manually trigger Merkle batch and anchor
+- Socket.IO event `"log"` - payload is one LogEntry, pushed the instant it's written
+  (manual write, simulate, or load generator — all go through the same HashChain).
+- Socket.IO event `"batch"` - payload is one Batch, pushed the instant it anchors
+  (normal batch or heartbeat; mirrors anchor-service's own `"anchored"` event but is
+  what the dashboard actually connects to — see Known gap below).
 
 ### Collector (Port 4002)
 - `GET /health` - status, total off-host logs, total batches
@@ -101,6 +106,15 @@ Reads the victim's SQLite logs (read-only) + the off-host collector + on-chain b
 - Env: `VICTIM_DB_PATH`, `COLLECTOR_DB_PATH`, `ANCHOR_INTERVAL_MS` (default 5000), `BASELINE_MODE=true` to suppress ANCHOR_SILENCE (anchoring intentionally off)
 
 Detection model: per on-chain batch, rebuild the Merkle root from the victim's current local entries in that batch's range and compare it to the anchored root (catches attack 6 — chain self-consistent locally, but the root no longer matches). Per entry, cross-check against the off-host collector to name exactly what happened (DELETED / INSERTED / MODIFIED / REORDERED / TRUNCATED). If a batch's root doesn't match but every entry in it already got a specific diagnosis, that diagnosis is trusted — the whole batch is only blanket-flagged when nothing else explains the mismatch, so one tampered line doesn't turn the rest of the batch red too.
+
+**Known gap — verifier JSON shape vs. dashboard's expected shape don't match.** This interface file only ever froze the Verdict *enum*, not the full response envelope, so verifier/ (M3) and dashboard/ (M4) independently invented incompatible field names for the same data. Confirmed by reading `dashboard/src/types.ts` against `verifier/src/types.ts`:
+- `result.ok` (dashboard expects top-level) vs. actual `result.summary.ok`.
+- `SilenceAlert`: dashboard wants `{ silent, lastAnchorTs, elapsedMs, intervalMs, thresholdMs }`; verifier emits `{ triggered, lastBatchId, lastAnchorTs, nowTs, secondsSinceLastAnchor, thresholdSeconds }` (different names *and* seconds vs. ms).
+- `EntryVerdict`: dashboard wants `reason`, `entry`, `offHostEntry`; verifier emits `detail`, `local`, `collector`.
+- `BatchVerdict`: dashboard wants `merkleRoot` + `calculatedRoot` + `txHash` + `blockNumber`; verifier emits `onChainMerkleRoot` + `localMerkleRoot` (no txHash/blockNumber at all).
+- `BaselineVerificationResult.brokenLinks[]`: dashboard wants `{ seq, expectedPrevHash, actualPrevHash }`; verifier emits `{ seq, reason }`.
+
+Nothing crashes — the dashboard's `safeFetch` silently falls back to mock data on a thrown error, and these are just-different-shaped objects (not throws), so it renders *something*, just not the real verdict. Whoever picks this up next: it's a one-sided adapter fix in either the verifier's API layer or the dashboard's `api/client.ts`, not a redesign — pick one shape and make the other side conform.
 
 ### Attacks (`attacks/`)
 `cd attacks && node --experimental-strip-types src/run.ts <1-8> [args]` - runs as root against `agent/victim.db` directly (SQLite), or (attack 7) kills whatever process is listening on the agent's port, or (attack 8) uses the anchorer key against the live contract. Env: `VICTIM_DB_PATH` to target a different DB file.
