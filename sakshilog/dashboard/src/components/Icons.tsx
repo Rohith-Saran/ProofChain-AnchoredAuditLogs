@@ -111,3 +111,21 @@ export function ShieldIcon({ size = 16, ...props }: IconProps) {
     </svg>
   );
 }
+
+export function GaugeIcon({ size = 16, ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M4.5 18a7.5 7.5 0 1 1 15 0" />
+      <path d="M12 13l3.5-3.5" />
+      <path d="M12 13a1.5 1.5 0 1 1 0 0z" />
+    </svg>
+  );
+}
+
+export function SparkleIcon({ size = 16, ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18" />
+    </svg>
+  );
+}

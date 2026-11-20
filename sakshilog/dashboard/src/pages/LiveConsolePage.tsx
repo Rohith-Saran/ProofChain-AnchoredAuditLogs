@@ -7,6 +7,7 @@ import { AnchorTimeline } from "../components/AnchorTimeline";
 import { DiffView } from "../components/DiffView";
 import { apiClient } from "../api/client";
 import { PulseIcon, ShieldIcon, CheckIcon } from "../components/Icons";
+import { RiskMeter } from "../components/RiskMeter";
 
 export const LiveConsolePage: React.FC = () => {
   const { logs, selectedLogSeq, setSelectedLogSeq } = useLogs();
@@ -186,6 +187,9 @@ export const LiveConsolePage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Adaptive Anchoring Risk Meter (M1 Phase 4a) */}
+          <RiskMeter />
 
           {/* Blockchain Anchors Timeline */}
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>

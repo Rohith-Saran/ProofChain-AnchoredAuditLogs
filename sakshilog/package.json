@@ -12,7 +12,8 @@
     "attacks",
     "bench",
     "evidence",
-    "dashboard"
+    "dashboard",
+    "ai"
   ],
   "scripts": {
     "node": "npm run node --workspace=@sakshilog/contracts",
@@ -20,8 +21,11 @@
     "deploy:local": "npm run deploy:local --workspace=@sakshilog/contracts",
     "test:contracts": "npm run test --workspace=@sakshilog/contracts",
     "test:agent": "npm run test --workspace=@sakshilog/agent",
+    "test:ai": "npm run test --workspace=@sakshilog/ai",
     "seed": "npm run seed --workspace=@sakshilog/agent",
     "smoke": "npm run smoke --workspace=@sakshilog/anchor-service",
-    "bench": "npm run bench --workspace=@sakshilog/bench"
+    "bench": "npm run bench --workspace=@sakshilog/bench",
+    "bench:exposure": "npm run bench:exposure --workspace=@sakshilog/bench",
+    "start:ai": "npm run start --workspace=@sakshilog/ai"
   }
 }

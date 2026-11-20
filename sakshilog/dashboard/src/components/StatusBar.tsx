@@ -1,12 +1,13 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useStore } from "../store/useStore";
-import { PulseIcon } from "./Icons";
+import { PulseIcon, GaugeIcon } from "./Icons";
 
 export const StatusBar: React.FC = () => {
   const location = useLocation();
   const connectionStatus = useStore((s) => s.connectionStatus);
   const isAnchorSilent = useStore((s) => s.isAnchorSilent);
+  const risk = useStore((s) => s.risk);
   const isDemoMode = useStore((s) => s.isDemoMode);
   const toggleDemoMode = useStore((s) => s.toggleDemoMode);
   const toggleMockMode = useStore((s) => s.toggleMockMode);
@@ -97,6 +98,27 @@ export const StatusBar: React.FC = () => {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        {risk.score > 0.1 && (
+          <div
+            title={risk.reason}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "4px 10px",
+              borderRadius: "16px",
+              border: "1px solid var(--line)",
+              background: "var(--bg)",
+              fontSize: "0.8rem",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            <GaugeIcon size={13} style={{ color: risk.score >= 0.66 ? "var(--bad)" : "var(--warn)" }} />
+            <span>risk {Math.round(risk.score * 100)}%</span>
+            <span style={{ color: "var(--ink-muted)" }}>{risk.anchorIntervalMs}ms</span>
+          </div>
+        )}
+
         {isAnchorSilent && (
           <div
             className="silence-banner-pill"

@@ -6,8 +6,8 @@
 | 1 Foundations | H0:45-4:00 | [ ] | H4 checkpoint. M1 done: contract + 19 tests + local deploy + anchorClient + smoke |
 | 2 End-to-end | H4:00-8:00 | [ ] | H8 GO / NO-GO |
 | 3 Attacks + depth | H8:00-11:30 | [x] | H11:30 checkpoint: All 8 attacks run from UI/API, red highlights, diff view, reset verified (M1, M2, M3, M4) |
-| 4 Evidence | H11:30-14:00 | [ ] | H14 FEATURE FREEZE |
-| 5 Pitch | H14:00-16:00 | [ ] | |
+| 4 Evidence + AI (revised) | H11:30-15:30 | [x] | H15:30 FEATURE FREEZE: adaptive anchoring + exposure/gas bench (M1), AI report wired into evidence pack (M2), benchmark + AI citation-checker test (M3), AI investigator service + dashboard risk meter/report panel (M4) |
+| 5 Pitch | H15:30-17:30 | [ ] | |
 
 ## Owners
 - M1: blockchain, anchor service
@@ -126,6 +126,17 @@
   - Created `attacks/src/attackRunner.ts`: reusable programmatic execution engine for all 8 attacks + `resetVictimDatabase` restoring clean baseline from off-host collector.
   - Exposed `/api/attacks`, `/api/attacks/run/:id` and `/api/attacks/reset` on the Verifier Express service (Port 4004), enabling live API-driven attacks from UI and remote callers.
   - Full Phase 3 test suite (`test-phase3-m3-m4.ts`): 13/13 passing tests confirming plain hash chain vs SakshiLog detection across all 8 attack vectors in Section 6.
+- Phase 4b: AI citation-checker test (`ai/test-investigator.ts`, `cd ai && npm test`) — the
+  "feed it tampered entries, count blocked claims" deliverable. 9 synthetic claims against a
+  scenario modeled on attack 6 (seq 1-2 verified OK, seq 3 deleted/flagged): a clean claim
+  citing only verified entries, a claim mixing a verified + a tampered citation, a
+  claim citing only a tampered entry, a claim citing a seq that doesn't exist at all, a
+  multi-citation clean claim, and an uncited claim. All pass: 2 claims kept, 3 blocked whole
+  (not trimmed to their valid citation), 1 silently dropped (no citation at all). Also
+  covers `buildPrompt()`'s separation of citable (verified) vs context-only (flagged)
+  entries. Pure function test, no network call or API key needed — tests the checker, not
+  the model behind it, since that's the actual enforcement point of "an AI that can only say
+  what the blockchain can prove."
 
 ## M4 log
 - Dashboard (`dashboard/`): Full implementation of SakshiLog live ops and guided explainer console.
@@ -159,6 +170,34 @@
     - Updated `LogTable.tsx` to detect and inject missing/deleted entries (such as sudo seq 103 in Attack 2 and 6) with high-contrast red highlights, strikethrough, and `DELETED`/`TRUNCATED` badges, enabling 1-click inspection of missing entries.
     - Enhanced `DiffView.tsx` with field-level diff styling (green for original collector witness, red for tampered SQLite store), highlighting exact character changes and reason codes.
     - Added "Reset All to Clean Baseline" and live attack result card on `AttackConsolePage.tsx` and `AttackStepPage.tsx`.
+- Phase 4a: AI incident investigator (`ai/`, new workspace, port 4005). One Anthropic API
+  call per report, forced into a tool call (`submit_incident_claims`) so the output is
+  always structured JSON, never free text to parse-and-hope. `ai/src/verifierClient.ts`
+  fetches the verifier's live `/api/verify` and splits entries into `verifiedEntries`
+  (verdict OK — the only ones in the prompt's "safe to cite" list) and `flaggedEntries`
+  (everything else, given as context but never citable). `ai/src/investigator.ts`'s
+  `checkCitations()` is the actual enforcement: a claim citing anything outside
+  `verifiedEntries` — tampered, unverified (including UNANCHORED_WINDOW), or a seq that
+  doesn't exist — is rejected whole. `GET /api/incident-report` returns the real thing if
+  `ANTHROPIC_API_KEY` is set and the full pipeline succeeds, else 503 (never a fabricated
+  200) — exactly what `evidence/src/aiReport.ts` (M2) was already built to treat as "no
+  report". Validated live: ran `ai/src/verifierClient.ts` against the real running verifier
+  (port 4094, the same victim.db used for earlier risk-scorer testing) and confirmed it
+  correctly split 24 verified / 13 flagged entries and built a sane prompt from real data.
+  `start-all.sh` / `start-all.bat` only launch this service (and set
+  `AI_INVESTIGATOR_URL` for the verifier) when `ANTHROPIC_API_KEY` is present in the
+  environment; otherwise the system runs exactly as before.
+  - Dashboard (Phase 4b): `RiskMeter` (new component, `dashboard/src/components/RiskMeter.tsx`)
+    renders the agent's live risk score / anchor interval / reason on the Live Console,
+    plus a compact risk pill in `StatusBar`; wired to the agent's `"risk"` Socket.IO event
+    and `GET /api/risk` via `useStore`'s `risk` state. `AiReportPanel` (new component) on
+    the Evidence page renders the AI incident report — passed claims with their citations,
+    blocked claims struck through with why, and an honest "not configured / unreachable"
+    message (never a placeholder dressed up as real) when `aiReport` is null. Both degrade
+    to a representative mock (`MOCK_RISK`, `MOCK_AI_REPORT`) in mock mode. `npx tsc --noEmit`
+    and `npx vitest run` both clean (two pre-existing, unrelated errors in
+    `AttackConsolePage.tsx`/`useStore.ts`'s mock attack blocks aside); production build
+    (`vite build`) succeeds.
 
 ## Blockers
 - None.

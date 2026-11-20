@@ -1,5 +1,6 @@
 import React from "react";
 import { EvidenceCard } from "../components/EvidenceCard";
+import { AiReportPanel } from "../components/AiReportPanel";
 
 export const EvidencePage: React.FC = () => {
   return (
@@ -14,6 +15,8 @@ export const EvidencePage: React.FC = () => {
       </div>
 
       <EvidenceCard />
+
+      <AiReportPanel />
 
       <div
         style={{

@@ -1,4 +1,22 @@
-import type { LogEntry, Batch, VerificationResult, AttackMetadata, StepDefinition } from "../types";
+import type { LogEntry, Batch, VerificationResult, AttackMetadata, StepDefinition, RiskState, AiIncidentReport } from "../types";
+
+export const MOCK_RISK: RiskState = {
+  score: 0,
+  anchorIntervalMs: 5000,
+  reason: "no recent activity",
+  updatedAt: Date.now(),
+};
+
+export const MOCK_AI_REPORT: AiIncidentReport = {
+  claims: [
+    { text: "An SSH session was accepted for ubuntu from 192.168.1.42.", citedEntries: [102] },
+    { text: "A sudo shell was opened as root immediately after.", citedEntries: [103] },
+  ],
+  blockedClaims: [
+    { text: "The attacker modified the sudo command to escalate privileges.", citedEntries: [103, 104] },
+  ],
+  generatedAt: Date.now(),
+};
 
 export const MOCK_LOGS: LogEntry[] = [
   { seq: 101, ts: 1732098000000, host: "victim-server", source: "systemd", level: "info", message: "System slice started session-c1.scope", prevHash: "0x0000000000000000000000000000000000000000000000000000000000000000", hash: "0x3fa94bb10c128ef3194ca810fa2bc91bca72901a1c4b901e4029df49c21e001" },

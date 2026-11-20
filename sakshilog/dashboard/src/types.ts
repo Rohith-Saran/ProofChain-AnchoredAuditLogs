@@ -127,6 +127,29 @@ export interface StepDefinition {
   sakshiLane: DiagramLaneState;
 }
 
+// Adaptive anchoring (M1 Phase 4a): agent/src/riskScorer.ts's live risk score, pushed over
+// the agent's "risk" Socket.IO event and available at GET {agentUrl}/api/risk.
+export interface RiskState {
+  score: number;
+  anchorIntervalMs: number;
+  reason: string;
+  updatedAt: number;
+}
+
+// AI incident investigator (M4 Phase 4a): ai/src/server.ts's GET /api/incident-report,
+// also embedded in the evidence pack as aiIncidentReport. null means the service wasn't
+// configured or didn't respond in time — never a fabricated report.
+export interface AiIncidentClaim {
+  text: string;
+  citedEntries: number[];
+}
+
+export interface AiIncidentReport {
+  claims: AiIncidentClaim[];
+  blockedClaims: AiIncidentClaim[];
+  generatedAt: number;
+}
+
 export interface AttackMetadata {
   id: number;
   name: string;

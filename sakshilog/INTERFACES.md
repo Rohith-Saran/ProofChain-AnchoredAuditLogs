@@ -83,7 +83,7 @@ RiskState { score: number, anchorIntervalMs: number, reason: string, updatedAt: 
 OK, MODIFIED, DELETED, INSERTED, REORDERED, TRUNCATED, UNANCHORED_WINDOW, ANCHOR_SILENCE
 
 ## Ports
-chain: 8545 | agent: 4001 | collector: 4002 | anchor-service: 4003 | verifier: 4004 | dashboard: 5173
+chain: 8545 | agent: 4001 | collector: 4002 | anchor-service: 4003 | verifier: 4004 | ai (incident investigator): 4005 | dashboard: 5173
 
 ## M2 Component Endpoints
 
@@ -119,15 +119,38 @@ chain: 8545 | agent: 4001 | collector: 4002 | anchor-service: 4003 | verifier: 4
   is always present in the pack — the real `IncidentReport` (see below) if
   `AI_INVESTIGATOR_URL` is set and that service answers `GET {url}/api/incident-report`
   within 2s, otherwise `null` with an honest "not configured / didn't respond" note in the
-  generated markdown report. Never a fabricated report. The AI investigator itself
-  (the LLM call + citation checker) is M4's build (Phase 4a); this is just the integration
-  point so M4 can wire it in without touching exportPack.ts again.
+  generated markdown report. Never a fabricated report.
 ```ts
 IncidentClaim { text, citedEntries: number[] }
 IncidentReport { claims: IncidentClaim[], blockedClaims: IncidentClaim[], generatedAt }
-// Checker rule (M4): every seq in citedEntries must exist, be verified OK, and not belong
+// Checker rule: every seq in citedEntries must exist, be verified OK, and not belong
 // to a tampered batch - otherwise the claim moves to blockedClaims, never shown as fact.
 ```
+
+### AI Incident Investigator (`ai/`, M4 Phase 4a, port 4005)
+One LLM call (Anthropic, forced tool-use for structured output) over the verifier's own
+`/api/verify` output, followed by a citation checker (`ai/src/investigator.ts::checkCitations`,
+~50 lines, no LLM involved) that enforces the rule above. `ai/src/verifierClient.ts` only
+ever puts verdict-`OK` entries in the "safe to cite" set the model is given — a claim citing
+anything else (tampered, unverified/`UNANCHORED_WINDOW`, or a seq that doesn't exist at all)
+is rejected whole, not trimmed, regardless of what the model intended.
+- `GET /health` - status, whether `ANTHROPIC_API_KEY` is configured, which verifier it reads from
+- `GET /api/incident-report` - runs the full pipeline (fetch verdicts -> prompt -> LLM ->
+  citation checker) and returns a fresh `IncidentReport`. **503**, not a fabricated 200, if
+  `ANTHROPIC_API_KEY` isn't set, the verifier is unreachable, or the model call fails -
+  `evidence/src/aiReport.ts`'s client already treats any non-200 here as "no report".
+- Env: `ANTHROPIC_API_KEY` (required to generate anything), `ANTHROPIC_MODEL` (default
+  `claude-sonnet-5-5`), `VERIFIER_URL` (default `http://127.0.0.1:4004`), `PORT`/`AI_PORT`
+  (default 4005)
+- `cd ai && npm test` (M3 Phase 4b, `ai/test-investigator.ts`) - the "feed it tampered
+  entries, count blocked claims" test: synthetic claims citing verified, tampered,
+  nonexistent, and mixed seqs, asserting the checker keeps only the clean ones and blocks
+  the rest whole. Pure function test, no network call or API key needed - tests the checker,
+  not the model behind it.
+- start-all.sh / start-all.bat only launch this service when `ANTHROPIC_API_KEY` is set in
+  the environment, and set `AI_INVESTIGATOR_URL` for the verifier when they do; otherwise
+  the whole pipeline runs exactly as before with `aiIncidentReport: null` in every evidence
+  pack, per the fallback above.
 
 ## M3 Component Endpoints and CLIs
 
