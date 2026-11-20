@@ -36,6 +36,27 @@ c.onAnchored(batch => ...)  // -> unsubscribe()
 Errors are thrown as AnchorError { reason: "BadBatchId" | "NotAnchorer" | "InvalidRange", args }.
 Deployment info (address, chainId, abi, deployBlock) is in contracts/deployments/localhost.json after deploy.
 
+### Anchor service (anchor-service/src/server.ts, M1 Phase 2, port 4003)
+The dedicated HTTP front door to AnchorRegistry: owns nextBatchId allocation, retries
+transient failures (chain slow / nonce race) with backoff, and pushes every anchor to
+connected dashboards over Socket.IO the moment it lands on-chain — regardless of whether
+it was submitted through this service or straight from an agent's in-process AnchorClient.
+- `GET /health` - status, contract address, nextBatchId
+- `POST /api/anchor` - body `{ merkleRoot, lastChainHash, startSeq, endSeq }` (no batchId -
+  the service assigns it). Queues the request, retries up to 3x with backoff on failure,
+  resyncs once on a BadBatchId race. Returns the anchored Batch (+ gasUsed as a string,
+  latencyMs).
+- `GET /api/anchors` (alias `/anchors`) - all on-chain batches, oldest first. `?from=N` to
+  skip ahead.
+- `GET /api/anchors/:id` (alias `/anchors/:id`) - one batch, 404 if not anchored yet.
+- Socket.IO event `"anchored"` - payload is one Batch, pushed in real time (dashboard: no
+  polling needed for new anchors).
+
+agent/src/anchorServiceConnector.ts prefers this service when `ANCHOR_SERVICE_URL` is set
+(start.sh / start.bat set it to `http://127.0.0.1:4003`), falling back to its own
+in-process AnchorClient if the service is unreachable so a demo doesn't stall over one
+process being down.
+
 ## Verdicts
 OK, MODIFIED, DELETED, INSERTED, REORDERED, TRUNCATED, UNANCHORED_WINDOW, ANCHOR_SILENCE
 

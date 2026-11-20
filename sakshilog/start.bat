@@ -7,8 +7,13 @@ start "SakshiLog Collector" cmd /k "cd collector && node --experimental-strip-ty
 
 timeout /t 2 >nul
 
+echo Starting SakshiLog Anchor Service on http://127.0.0.1:4003 ...
+start "SakshiLog Anchor Service" cmd /k "cd anchor-service && node --experimental-strip-types src/server.ts"
+
+timeout /t 2 >nul
+
 echo Starting SakshiLog Victim Agent on http://127.0.0.1:4001 ...
-start "SakshiLog Agent" cmd /k "cd agent && node --experimental-strip-types src/server.ts"
+start "SakshiLog Agent" cmd /k "cd agent && set ANCHOR_SERVICE_URL=http://127.0.0.1:4003 && node --experimental-strip-types src/server.ts"
 
 timeout /t 2 >nul
 

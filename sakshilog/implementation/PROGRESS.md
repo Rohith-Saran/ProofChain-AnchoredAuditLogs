@@ -19,7 +19,21 @@
 - Phase 1 done: AnchorRegistry.sol (onlyAnchorer, strict nextBatchId, heartbeat empty range), 19 unit tests passing,
   deploy script -> contracts/deployments/localhost.json, anchor-service/src/anchorClient.ts, smoke test passing on local node.
 - First gas numbers (hardhat, optimizer 200): anchor ~100k gas (first ever batch ~117k), heartbeat ~79k, deploy ~511k.
-- Next (Phase 2): anchor service loop every 5 s + heartbeats + retry queue, /anchors endpoint, Socket.IO push.
+- Phase 2 done: `anchor-service/src/server.ts` — standalone HTTP + Socket.IO service on :4003.
+  POST /api/anchor owns nextBatchId allocation, queues requests, retries up to 3x with backoff on
+  failure, resyncs once on a BadBatchId race. GET /api/anchors[/:id] for batch history. Socket.IO
+  "anchored" event pushed live via a dedicated read-only AnchorClient watching the Anchored event
+  directly, so every anchor is broadcast regardless of which process wrote it.
+  `agent/src/anchorServiceConnector.ts` now prefers this service when ANCHOR_SERVICE_URL is set
+  (start.sh/start.bat wire it up by default), falling back to its own in-process AnchorClient if
+  the service is unreachable. Batch-every-5s and heartbeat loop itself still lives in the agent
+  (M2's anchorServiceConnector owns the Merkle batching since it needs direct SQLite access);
+  this service is the chain-facing half of that split.
+  Retry path exercised live against a real nonce race from concurrent anchor-service instances on
+  the same dev chain: attempt 1 failed with NONCE_EXPIRED, retried after 500 ms, succeeded.
+- Next (Phase 3): silence-threshold alerting wired into a live alert channel (verifier already
+  computes it), gas/latency/throughput numbers from the live pipeline (bench/ has the synthetic
+  numbers; this is the measured-on-real-chain version).
 
 ## M2 log
 - Phase 1 Foundations:

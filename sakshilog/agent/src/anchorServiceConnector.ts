@@ -148,9 +148,30 @@ export class AnchorConnector {
     }
   }
 
-  /** Submit one anchor (normal range or heartbeat) via whichever backend is available. */
+  /**
+   * Submit one anchor (normal range or heartbeat) via whichever backend is available.
+   * Prefers the dedicated anchor-service (ANCHOR_SERVICE_URL) when configured — it owns
+   * the retry/queue logic and is what pushes live updates to the dashboard over
+   * Socket.IO — but falls back to the in-process AnchorClient if the service is
+   * unreachable, so a demo doesn't stall just because that one process isn't up.
+   */
   private async submitAnchor(startSeq: number, endSeq: number, merkleRoot: string, lastChainHash: string): Promise<Batch> {
-    // 1. Try AnchorClient directly if initialized
+    // 1. Try the HTTP anchor service first, if configured
+    if (this.anchorServiceUrl) {
+      try {
+        const resp = await fetch(`${this.anchorServiceUrl}/api/anchor`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ merkleRoot, lastChainHash, startSeq, endSeq }),
+        });
+        if (!resp.ok) throw new Error(`Anchor service HTTP error ${resp.status}: ${await resp.text()}`);
+        return (await resp.json()) as Batch;
+      } catch (err) {
+        console.warn(`[AnchorConnector] Anchor service unreachable (${(err as Error).message}), falling back`);
+      }
+    }
+
+    // 2. Direct AnchorClient (in-process)
     if (this.anchorClient) {
       const nextId = await this.anchorClient.nextBatchId();
       const res = await this.anchorClient.anchor({
@@ -170,17 +191,6 @@ export class AnchorConnector {
         blockNumber: res.blockNumber,
         timestamp: res.timestamp,
       };
-    }
-
-    // 2. Try HTTP Anchor Service endpoint
-    if (this.anchorServiceUrl) {
-      const resp = await fetch(`${this.anchorServiceUrl}/api/anchor`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ merkleRoot, lastChainHash, startSeq, endSeq }),
-      });
-      if (!resp.ok) throw new Error(`Anchor service HTTP error ${resp.status}`);
-      return (await resp.json()) as Batch;
     }
 
     // 3. Fallback stand-in batch for testing when chain isn't booted yet

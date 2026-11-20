@@ -28,7 +28,7 @@ cd ../anchor-service && npm install
 npm run smoke                 # anchors, reads back, checks overwrite/skip/non-anchorer are rejected
                                # (don't run this against the chain you then use for a live demo — see INTERFACES.md)
 
-./start.sh                    # or start.bat on Windows — agent :4001, collector :4002, verifier :4004
+./start.sh                    # or start.bat on Windows — collector :4002, anchor-service :4003, agent :4001, verifier :4004
 ```
 
 Attacks (run as root against `agent/victim.db`), benchmarks, and evidence export (M3):
