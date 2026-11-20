@@ -1,11 +1,12 @@
-import type { LogEntry, Batch, VerificationResult, BaselineVerificationResult, SystemStatus } from "../types";
-import { MOCK_LOGS, MOCK_BATCHES, MOCK_VERIFICATION } from "../mock/data";
+import type { LogEntry, Batch, VerificationResult, BaselineVerificationResult, SystemStatus, RiskState, AiIncidentReport } from "../types";
+import { MOCK_LOGS, MOCK_BATCHES, MOCK_VERIFICATION, MOCK_RISK } from "../mock/data";
 import { normalizeVerification, normalizeBaseline } from "./normalize";
 import type { RawVerificationResult, RawBaselineResult } from "./normalize";
 
 const AGENT_URL = import.meta.env.VITE_AGENT_URL || "http://127.0.0.1:4001";
 const COLLECTOR_URL = import.meta.env.VITE_COLLECTOR_URL || "http://127.0.0.1:4002";
 const VERIFIER_URL = import.meta.env.VITE_VERIFIER_URL || "http://127.0.0.1:4004";
+const AI_URL = import.meta.env.VITE_AI_URL || "http://127.0.0.1:4005";
 
 let forceMock = import.meta.env.VITE_MOCK === "1";
 
@@ -130,6 +131,27 @@ export const apiClient = {
       return (await res.json()) as Record<string, unknown>;
     } catch (err) {
       console.warn(`Fetch failed for ${VERIFIER_URL}/api/evidence/export:`, err);
+      return null;
+    }
+  },
+
+  // Adaptive anchoring (M1 Phase 4a): the agent's live risk score / anchor interval.
+  // Falls back to the quiet-baseline mock state rather than throwing.
+  async getRisk(): Promise<RiskState> {
+    return safeFetch<RiskState>(`${AGENT_URL}/api/risk`, undefined, MOCK_RISK);
+  },
+
+  // AI incident investigator (M4 Phase 4a): ai/src/server.ts's GET /api/incident-report.
+  // Returns null (never fabricated data) if the service isn't configured or unreachable,
+  // same contract as getEvidencePack().
+  async getIncidentReport(): Promise<AiIncidentReport | null> {
+    if (forceMock) return null;
+    try {
+      const res = await fetch(`${AI_URL}/api/incident-report`, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) return null;
+      return (await res.json()) as AiIncidentReport;
+    } catch (err) {
+      console.warn(`Fetch failed for ${AI_URL}/api/incident-report:`, err);
       return null;
     }
   },

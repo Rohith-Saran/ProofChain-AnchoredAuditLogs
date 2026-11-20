@@ -1,8 +1,12 @@
 import { create } from "zustand";
+<<<<<<< HEAD
 import type { LogEntry, Batch, VerificationResult, ConnectionStatus, SystemStatus, AttackMetadata, Verdict } from "../types";
+=======
+import type { LogEntry, Batch, VerificationResult, ConnectionStatus, SystemStatus, AttackMetadata, RiskState, AiIncidentReport } from "../types";
+>>>>>>> e6228c6815ae0bf8c6b564f8d89da00609518a86
 import { apiClient, isMockMode, setMockMode } from "../api/client";
 import { realtime } from "../api/socket";
-import { MOCK_LOGS, MOCK_BATCHES, MOCK_VERIFICATION, ATTACKS } from "../mock/data";
+import { MOCK_LOGS, MOCK_BATCHES, MOCK_VERIFICATION, MOCK_RISK, ATTACKS } from "../mock/data";
 
 interface AppState {
   logs: LogEntry[];
@@ -18,6 +22,10 @@ interface AppState {
   selectedBatchId: number | null;
   isVerifying: boolean;
   attackInProgress: number | null;
+  risk: RiskState;
+  aiReport: AiIncidentReport | null;
+  isLoadingAiReport: boolean;
+  aiReportError: string | null;
   lastAttackResult: {
     attackId: number;
     name: string;
@@ -46,6 +54,7 @@ interface AppState {
   runVerification: () => Promise<void>;
   resetDemo: () => Promise<void>;
   executeAttackLive: (attackId: number) => Promise<void>;
+  fetchAiReport: () => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -63,6 +72,10 @@ export const useStore = create<AppState>((set, get) => ({
   isVerifying: false,
   attackInProgress: null,
   lastAttackResult: null,
+  risk: MOCK_RISK,
+  aiReport: null,
+  isLoadingAiReport: false,
+  aiReportError: null,
 
   init: () => {
     // Listen to realtime socket
@@ -93,6 +106,11 @@ export const useStore = create<AppState>((set, get) => ({
       set({ isAnchorSilent: silent });
     });
 
+    // Adaptive anchoring (M1 Phase 4a): live risk score / anchor interval.
+    realtime.onRisk((state) => {
+      set({ risk: state });
+    });
+
     // Initial fetch
     get().fetchLogs();
     get().fetchBatches();
@@ -100,6 +118,10 @@ export const useStore = create<AppState>((set, get) => ({
 
     apiClient.getSystemStatus().then((status) => {
       set({ systemStatus: status });
+    });
+
+    apiClient.getRisk().then((risk) => {
+      set({ risk });
     });
   },
 
@@ -698,5 +720,25 @@ export const useStore = create<AppState>((set, get) => ({
     } finally {
       set({ attackInProgress: null });
     }
-  }
+  },
+
+  fetchAiReport: async () => {
+    set({ isLoadingAiReport: true, aiReportError: null });
+    try {
+      const report = await apiClient.getIncidentReport();
+      if (report) {
+        set({ aiReport: report, isLoadingAiReport: false });
+      } else {
+        set({
+          aiReport: null,
+          isLoadingAiReport: false,
+          aiReportError: isMockMode()
+            ? null
+            : "AI investigator not configured or unreachable (set ANTHROPIC_API_KEY and start ai/).",
+        });
+      }
+    } catch (err) {
+      set({ aiReport: null, isLoadingAiReport: false, aiReportError: (err as Error).message });
+    }
+  },
 }));

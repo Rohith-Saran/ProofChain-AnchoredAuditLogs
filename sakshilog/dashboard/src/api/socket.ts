@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client";
-import type { LogEntry, Batch, VerificationResult, ConnectionStatus } from "../types";
+import type { LogEntry, Batch, VerificationResult, ConnectionStatus, RiskState } from "../types";
 import { isMockMode } from "./client";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://127.0.0.1:4001";
@@ -13,6 +13,7 @@ class RealtimeManager {
   private batchListeners: Set<Listener<Batch>> = new Set();
   private verdictListeners: Set<Listener<VerificationResult>> = new Set();
   private silenceListeners: Set<Listener<boolean>> = new Set();
+  private riskListeners: Set<Listener<RiskState>> = new Set();
   private currentStatus: ConnectionStatus = "disconnected";
   private mockInterval: number | null = null;
   private mockSeq = 107;
@@ -69,6 +70,12 @@ class RealtimeManager {
       this.socket.on("silence", (isSilent: boolean) => {
         this.silenceListeners.forEach((fn) => fn(isSilent));
       });
+
+      // Adaptive anchoring (M1 Phase 4a): pushed on every new entry observed, and whenever
+      // the agent cuts its current wait short because risk just rose.
+      this.socket.on("risk", (state: RiskState) => {
+        this.riskListeners.forEach((fn) => fn(state));
+      });
     } catch {
       this.setStatus("mock");
       this.startMockSimulation();
@@ -110,6 +117,11 @@ class RealtimeManager {
     return () => this.silenceListeners.delete(fn);
   }
 
+  public onRisk(fn: Listener<RiskState>): () => void {
+    this.riskListeners.add(fn);
+    return () => this.riskListeners.delete(fn);
+  }
+
   public startMockSimulation() {
     if (this.mockInterval) return;
 
@@ -143,6 +155,17 @@ class RealtimeManager {
         };
         this.batchListeners.forEach((fn) => fn(batch));
       }
+
+      // Mock risk: gently oscillate so the risk meter visibly moves in demo/mock mode too.
+      const mockScore = Math.round(((Math.sin(this.mockSeq / 7) + 1) / 2) * 100) / 100;
+      this.riskListeners.forEach((fn) =>
+        fn({
+          score: mockScore,
+          anchorIntervalMs: Math.round(5000 - mockScore * 4000),
+          reason: mockScore > 0.5 ? "simulated failed logins in last 10s" : "no recent activity",
+          updatedAt: Date.now(),
+        })
+      );
     }, 4000);
   }
 

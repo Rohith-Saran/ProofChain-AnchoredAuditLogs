@@ -1,22 +1,36 @@
 import { MerkleTree } from "./merkle.ts";
 import { AgentDB } from "./db.ts";
 import { CollectorClient } from "./collectorClient.ts";
-import type { Batch } from "./types.ts";
+import type { Batch, LogEntry } from "./types.ts";
+import { RiskScorer, RESCHEDULE_EPSILON_MS } from "./riskScorer.ts";
+import type { RiskState } from "./riskScorer.ts";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { pathToFileURL } from "node:url";
 
 export interface AnchorConfig {
+  /** Anchor interval used when risk is quiet (and the ceiling adaptive anchoring relaxes
+   *  back to). Default 5000ms. Kept as `intervalMs` for backwards compatibility. */
   intervalMs?: number;
+  /** Anchor interval adaptive anchoring speeds up to under elevated risk. Default 1000ms. */
+  minIntervalMs?: number;
   baselineMode?: boolean;
   anchorServiceUrl?: string; // Optional HTTP anchor service endpoint
+  /** Risk-based interval shrinking (5s -> 1s under suspicious activity). Default on;
+   *  set false (or ADAPTIVE_ANCHORING=false) to fall back to a fixed interval. */
+  adaptiveAnchoring?: boolean;
 }
 
 export class AnchorConnector {
   private timer: NodeJS.Timeout | null = null;
+  private waitStartedAt = 0;
+  private waitDurationMs = 0;
   private isAnchoring = false;
   private baselineMode = false;
-  private readonly intervalMs: number;
+  private readonly maxIntervalMs: number;
+  private readonly minIntervalMs: number;
+  private readonly adaptiveAnchoring: boolean;
+  private readonly riskScorer: RiskScorer;
   private anchorClient: any = null;
   private anchorServiceUrl: string | null = null;
   private lastEndSeq = 0;
@@ -25,6 +39,8 @@ export class AnchorConnector {
   private readonly collector?: CollectorClient;
   /** Set by server.ts to push each anchored batch out over Socket.IO ("batch" event). */
   onBatch: ((batch: Batch) => void) | null = null;
+  /** Set by server.ts to push risk updates out over Socket.IO ("risk" event). */
+  onRisk: ((state: RiskState) => void) | null = null;
 
   constructor(
     db: AgentDB,
@@ -33,7 +49,10 @@ export class AnchorConnector {
   ) {
     this.db = db;
     this.collector = collector;
-    this.intervalMs = cfg?.intervalMs ?? 5000;
+    this.maxIntervalMs = cfg?.intervalMs ?? (Number(process.env.ANCHOR_INTERVAL_MS) || 5000);
+    this.minIntervalMs = cfg?.minIntervalMs ?? (Number(process.env.ANCHOR_MIN_INTERVAL_MS) || 1000);
+    this.adaptiveAnchoring = cfg?.adaptiveAnchoring ?? (process.env.ADAPTIVE_ANCHORING !== "false");
+    this.riskScorer = new RiskScorer({ maxIntervalMs: this.maxIntervalMs, minIntervalMs: this.minIntervalMs });
     this.baselineMode = cfg?.baselineMode ?? (process.env.BASELINE_MODE === "true");
     this.anchorServiceUrl = cfg?.anchorServiceUrl ?? process.env.ANCHOR_SERVICE_URL ?? null;
 
@@ -43,6 +62,35 @@ export class AnchorConnector {
       this.lastEndSeq = latest.seq;
       this.lastChainHash = latest.hash;
     }
+  }
+
+  /** Feed newly-written entries to the risk scorer (called from HashChain.onEntries).
+   *  If risk just spiked while we're mid-wait on a long (quiet-era) interval, cuts the
+   *  wait short so the agent reacts within about one tick, not up to maxIntervalMs late. */
+  observeEntries(entries: LogEntry[]): void {
+    if (!this.adaptiveAnchoring) return;
+    const state = this.riskScorer.observe(entries);
+    this.onRisk?.(state);
+
+    if (this.timer) {
+      const elapsed = Date.now() - this.waitStartedAt;
+      const remaining = this.waitDurationMs - elapsed;
+      if (state.anchorIntervalMs < remaining - RESCHEDULE_EPSILON_MS) {
+        clearTimeout(this.timer);
+        this.timer = null;
+        this.scheduleNext();
+      }
+    }
+  }
+
+  /** Current risk score / interval / reason, recomputed against the live sliding window
+   *  (so it decays back down between ticks even with no new entries). */
+  getRiskState(): RiskState {
+    return this.riskScorer.recompute();
+  }
+
+  getCurrentIntervalMs(): number {
+    return this.adaptiveAnchoring ? this.riskScorer.recompute().anchorIntervalMs : this.maxIntervalMs;
   }
 
   setBaselineMode(enabled: boolean): void {
@@ -56,12 +104,25 @@ export class AnchorConnector {
 
   async start(): Promise<void> {
     await this.initClient();
-    this.timer = setInterval(() => {
-      this.triggerBatch().catch((err) => {
-        console.error("[AnchorConnector] Batch interval error:", err.message);
-      });
-    }, this.intervalMs);
-    console.log(`[AnchorConnector] Started batch interval (${this.intervalMs} ms)`);
+    this.scheduleNext();
+    console.log(
+      this.adaptiveAnchoring
+        ? `[AnchorConnector] Started adaptive batch loop (${this.minIntervalMs}-${this.maxIntervalMs} ms, risk-driven)`
+        : `[AnchorConnector] Started fixed batch interval (${this.maxIntervalMs} ms)`
+    );
+  }
+
+  /** Self-rescheduling loop (replaces a fixed setInterval) so each wait can use that
+   *  moment's risk-driven interval instead of one interval fixed at startup. */
+  private scheduleNext(): void {
+    const delay = this.getCurrentIntervalMs();
+    this.waitStartedAt = Date.now();
+    this.waitDurationMs = delay;
+    this.timer = setTimeout(() => {
+      this.triggerBatch()
+        .catch((err) => console.error("[AnchorConnector] Batch interval error:", err.message))
+        .finally(() => this.scheduleNext());
+    }, delay);
   }
 
   private async initClient(): Promise<void> {
@@ -212,7 +273,7 @@ export class AnchorConnector {
 
   stop(): void {
     if (this.timer) {
-      clearInterval(this.timer);
+      clearTimeout(this.timer);
       this.timer = null;
     }
   }
