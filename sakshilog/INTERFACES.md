@@ -103,16 +103,16 @@ Reads the victim's SQLite logs (read-only) + the off-host collector + on-chain b
 - `GET /api/verify/batch/:id` - just one on-chain batch's entries + its root/lastChainHash check (attack console diff view)
 - `GET /api/verify/baseline` - what a plain hash chain (no blockchain, no collector) would conclude: `{ ok, brokenLinks }` — this is the "obvious fix fails" demo
 - `GET /api/silence` - silence status alone (cheap)
+- `GET /api/evidence/export` - real CERT-In evidence pack (wraps `evidence/src/exportPack.ts`
+  against the live victim + collector DBs and on-chain state): `{ version, entries (with
+  Merkle proofs, tampered flags), batches, stats, ... }` — see `evidence/src/exportPack.ts`
+  for the full `EvidencePack` shape. Also writes `evidence-pack.json` / `-report.md` to the
+  verifier process's cwd as a side effect (same as `npm run export` in `evidence/`).
 - Env: `VICTIM_DB_PATH`, `COLLECTOR_DB_PATH`, `ANCHOR_INTERVAL_MS` (default 5000), `BASELINE_MODE=true` to suppress ANCHOR_SILENCE (anchoring intentionally off)
 
 Detection model: per on-chain batch, rebuild the Merkle root from the victim's current local entries in that batch's range and compare it to the anchored root (catches attack 6 — chain self-consistent locally, but the root no longer matches). Per entry, cross-check against the off-host collector to name exactly what happened (DELETED / INSERTED / MODIFIED / REORDERED / TRUNCATED). If a batch's root doesn't match but every entry in it already got a specific diagnosis, that diagnosis is trusted — the whole batch is only blanket-flagged when nothing else explains the mismatch, so one tampered line doesn't turn the rest of the batch red too.
 
-**Known gap — verifier JSON shape vs. dashboard's expected shape don't match.** This interface file only ever froze the Verdict *enum*, not the full response envelope, so verifier/ (M3) and dashboard/ (M4) independently invented incompatible field names for the same data. Confirmed by reading `dashboard/src/types.ts` against `verifier/src/types.ts`:
-- `result.ok` (dashboard expects top-level) vs. actual `result.summary.ok`.
-- `SilenceAlert`: dashboard wants `{ silent, lastAnchorTs, elapsedMs, intervalMs, thresholdMs }`; verifier emits `{ triggered, lastBatchId, lastAnchorTs, nowTs, secondsSinceLastAnchor, thresholdSeconds }` (different names *and* seconds vs. ms).
-- `EntryVerdict`: dashboard wants `reason`, `entry`, `offHostEntry`; verifier emits `detail`, `local`, `collector`.
-- `BatchVerdict`: dashboard wants `merkleRoot` + `calculatedRoot` + `txHash` + `blockNumber`; verifier emits `onChainMerkleRoot` + `localMerkleRoot` (no txHash/blockNumber at all).
-- `BaselineVerificationResult.brokenLinks[]`: dashboard wants `{ seq, expectedPrevHash, actualPrevHash }`; verifier emits `{ seq, reason }`.
+**Fixed — verifier JSON shape vs. dashboard's expected shape.** This interface file only ever froze the Verdict *enum*, not the full response envelope, so verifier/ (M3) and dashboard/ (M4) independently invented incompatible field names for the same data (`result.ok` vs `result.summary.ok`, `silent` vs `triggered`, `reason`/`entry`/`offHostEntry` vs `detail`/`local`/`collector`, etc.). Rather than change either side's own shape (and risk the verifier's 9 unit tests or the dashboard's existing components), `dashboard/src/api/normalize.ts` adapts the verifier's real wire shape into `dashboard/src/types.ts`'s shape; `apiClient.getVerification()` / `getBaselineVerification()` call it instead of passing the response straight through. Validated live end-to-end (real agent + collector + verifier + an actual attack 1): `isAnchorSilent`, the attack console's diff view (diagnosis text + both rows), and `summary.ok` all now reflect real data. If verifier/'s shape ever changes, update `normalize.ts`, not every component.
 
 Nothing crashes — the dashboard's `safeFetch` silently falls back to mock data on a thrown error, and these are just-different-shaped objects (not throws), so it renders *something*, just not the real verdict. Whoever picks this up next: it's a one-sided adapter fix in either the verifier's API layer or the dashboard's `api/client.ts`, not a redesign — pick one shape and make the other side conform.
 

@@ -1,5 +1,7 @@
 import type { LogEntry, Batch, VerificationResult, BaselineVerificationResult, SystemStatus } from "../types";
 import { MOCK_LOGS, MOCK_BATCHES, MOCK_VERIFICATION } from "../mock/data";
+import { normalizeVerification, normalizeBaseline } from "./normalize";
+import type { RawVerificationResult, RawBaselineResult } from "./normalize";
 
 const AGENT_URL = import.meta.env.VITE_AGENT_URL || "http://127.0.0.1:4001";
 const COLLECTOR_URL = import.meta.env.VITE_COLLECTOR_URL || "http://127.0.0.1:4002";
@@ -81,20 +83,55 @@ export const apiClient = {
     );
   },
 
+  // The verifier's actual JSON shape doesn't match this dashboard's VerificationResult
+  // type (different field names for entries/batches/silence - see INTERFACES.md "Known
+  // gap"), so this fetches the raw shape and adapts it via normalizeVerification()
+  // instead of going through safeFetch's plain pass-through.
   async getVerification(): Promise<VerificationResult> {
-    return safeFetch<VerificationResult>(
-      `${VERIFIER_URL}/api/verify`,
-      undefined,
-      MOCK_VERIFICATION
-    );
+    if (forceMock) return MOCK_VERIFICATION;
+    try {
+      const [raw, batchesResult] = await Promise.all([
+        fetch(`${VERIFIER_URL}/api/verify`, { signal: AbortSignal.timeout(3000) }).then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          return res.json() as Promise<RawVerificationResult>;
+        }),
+        apiClient.getBatches().catch(() => ({ batches: [] as Batch[], count: 0 })),
+      ]);
+      return normalizeVerification(raw, batchesResult.batches);
+    } catch (err) {
+      console.warn(`Fetch failed for ${VERIFIER_URL}/api/verify, falling back to mock data:`, err);
+      return MOCK_VERIFICATION;
+    }
   },
 
   async getBaselineVerification(): Promise<BaselineVerificationResult> {
-    return safeFetch<BaselineVerificationResult>(
-      `${VERIFIER_URL}/api/verify/baseline`,
-      undefined,
-      { ok: true, brokenLinks: [], totalEntries: MOCK_LOGS.length }
-    );
+    const fallback: BaselineVerificationResult = { ok: true, brokenLinks: [], totalEntries: MOCK_LOGS.length };
+    if (forceMock) return fallback;
+    try {
+      const res = await fetch(`${VERIFIER_URL}/api/verify/baseline`, { signal: AbortSignal.timeout(3000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      const raw = (await res.json()) as RawBaselineResult;
+      const logsResult = await apiClient.getLogs(1, 0).catch(() => ({ logs: [] as LogEntry[], total: MOCK_LOGS.length }));
+      return normalizeBaseline(raw, logsResult.total);
+    } catch (err) {
+      console.warn(`Fetch failed for ${VERIFIER_URL}/api/verify/baseline, falling back to mock data:`, err);
+      return fallback;
+    }
+  },
+
+  // The real CERT-In evidence pack (verifier/src/server.ts's /api/evidence/export, which
+  // wraps evidence/src/exportPack.ts). Returns null on failure so callers can fall back
+  // to a clearly-labelled placeholder instead of silently downloading fake data.
+  async getEvidencePack(): Promise<Record<string, unknown> | null> {
+    if (forceMock) return null;
+    try {
+      const res = await fetch(`${VERIFIER_URL}/api/evidence/export`, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      return (await res.json()) as Record<string, unknown>;
+    } catch (err) {
+      console.warn(`Fetch failed for ${VERIFIER_URL}/api/evidence/export:`, err);
+      return null;
+    }
   },
 
   async triggerAnchor(): Promise<{ success: boolean; batchId?: number }> {

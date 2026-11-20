@@ -1,4 +1,6 @@
 import express from "express";
+import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 import { verifyLogs, verifyBaseline } from "./verifier.ts";
 import { readLocalEntries, readCollectorEntries, readOnChainBatches, defaultPaths } from "./loaders.ts";
 
@@ -68,6 +70,20 @@ export function createVerifierApp() {
       const localEntries = readLocalEntries(victimDbPath);
       const result = verifyBaseline(localEntries);
       res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  // CERT-In style evidence pack (real one: entries, Merkle proofs, on-chain batch info,
+  // tampered entries flagged), generated on demand so the dashboard's "Export Evidence
+  // Pack" button can download real data instead of the placeholder it used to fake.
+  app.get("/api/evidence/export", async (req, res) => {
+    try {
+      const exportPackPath = path.resolve(import.meta.dirname, "../../evidence/src/exportPack.ts");
+      const mod = await import(pathToFileURL(exportPackPath).href);
+      const pack = mod.exportEvidencePack({ victimDbPath, collectorDbPath });
+      res.json(pack);
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
     }

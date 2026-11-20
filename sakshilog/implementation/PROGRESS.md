@@ -50,12 +50,11 @@
     (normal or heartbeat — one hook in `AnchorConnector`). This is what dashboard/src/api/socket.ts
     was already built to connect to; without it the live console silently falls back to mock data.
     Validated live with a socket.io-client smoke check — both events land in real time.
-  - Found (not yet fixed — flagged in INTERFACES.md "Known gap"): the verifier's actual JSON
-    response shape (M3) doesn't match what dashboard/src/types.ts expects (M4) — different field
-    names for SilenceAlert, EntryVerdict, BatchVerdict, and BaselineVerificationResult, plus
-    `result.ok` vs `result.summary.ok`. INTERFACES.md only ever froze the Verdict enum, not the
-    envelope, so the two sides diverged independently. Dashboard degrades to mock data silently
-    rather than crashing, so this is easy to miss in a demo — needs a pick-one-shape adapter fix.
+  - Found and fixed (see M4 log below): the verifier's actual JSON response shape (M3) didn't
+    match what dashboard/src/types.ts expected (M4) — different field names for SilenceAlert,
+    EntryVerdict, BatchVerdict, and BaselineVerificationResult, plus `result.ok` vs
+    `result.summary.ok`. INTERFACES.md only ever froze the Verdict enum, not the envelope, so
+    the two sides diverged independently.
 - Phase 3 Attacks & Depth:
   - Baseline mode toggle (`BASELINE_MODE=true` or POST `/api/baseline`) implemented: suppresses blockchain anchoring while maintaining plain SQLite hash chain, enabling the "obvious fix fails" demo.
 - Phase 4 Evidence:
@@ -100,6 +99,25 @@
   - Components: `StatusBar`, `Stepper`, `LaneDiagram` (SVG), `LogBlock`, `AnchorBlock`, `VerdictBadge`, `LogTable`, `AnchorTimeline`, `AttackButton`, `DiffView`, `BenchTable`, `BarChart`, `EvidenceCard`, `HashText`.
   - Presentation & Demo Mode: `#/?demo=1` with 18px+ typography, presenter hotkeys (1-8 attack jump, N/P stepper, R reset, V verifier, M mock toggle).
   - Automated tests passing for `Stepper` and `VerdictBadge` (`npm run test`). Full clean production build (`npm run build`).
+- Bug fixes (integration errors found by cross-checking against the real backend, not visible
+  in `npm run build`/`npm test` since both passed throughout — the dashboard degrades to mock
+  data silently on a shape mismatch instead of crashing):
+  - The verifier/dashboard JSON shape mismatch (see M2 log and INTERFACES.md "Fixed") meant
+    `isAnchorSilent` was always `false` (`silent` vs. real field `triggered`) and the attack
+    console's `DiffView` always showed "[ROW COMPLETELY MISSING]" / "No record in collector"
+    with no diagnosis text, regardless of actual data (`reason`/`entry`/`offHostEntry` vs. real
+    fields `detail`/`local`/`collector`). Fixed with an adapter, `dashboard/src/api/normalize.ts`,
+    used by `apiClient.getVerification()` / `getBaselineVerification()` — not a rewrite of either
+    side's own shape, so verifier's 9 unit tests and the dashboard's existing components are
+    untouched. Validated live end-to-end with a real attack (edit-line on seq 3): diagnosis text,
+    both rows, and `isAnchorSilent` all now reflect the real tamper.
+  - `EvidenceCard`'s "Export Evidence Pack" button generated an entirely fake, hardcoded JSON
+    blob and downloaded it under the real CERT-In claim — no backend endpoint existed for the
+    browser to call. Added `GET /api/evidence/export` to `verifier/src/server.ts` (wraps the
+    real `evidence/src/exportPack.ts` against the live victim + collector DBs and on-chain
+    state) and wired the button to it via `apiClient.getEvidencePack()`, falling back to a
+    clearly-labelled placeholder (never silently-fake data) only if the verifier is unreachable.
+    Validated live: real tampered-entry detection shows up in the downloaded pack.
 
 ## Blockers
 - None.
