@@ -29,14 +29,14 @@ AGENT_PID=$!
 cd ..
 
 AI_PID=""
-if [ -n "$ANTHROPIC_API_KEY" ]; then
+if [ -n "$ANTHROPIC_API_KEY" ] || [ -n "$GROQ_API_KEY" ] || [ -f ai/.env ]; then
   echo "=== [6/7] Starting AI Incident Investigator on :4005 ==="
-  cd ai && node --experimental-strip-types src/server.ts &
+  cd ai && node --env-file-if-exists=.env --experimental-strip-types src/server.ts &
   AI_PID=$!
   cd ..
   export AI_INVESTIGATOR_URL="http://127.0.0.1:4005"
 else
-  echo "=== [6/7] Skipping AI Incident Investigator (ANTHROPIC_API_KEY not set) ==="
+  echo "=== [6/7] Skipping AI Incident Investigator (no GROQ_API_KEY / ANTHROPIC_API_KEY, and no ai/.env) ==="
 fi
 
 echo "=== [7/7] Starting Verifier on :4004 ==="

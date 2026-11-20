@@ -60,7 +60,7 @@ async function safeFetch<T>(url: string, options?: RequestInit, fallback?: T): P
 }
 
 const AI_ERROR_MESSAGES: Record<AiErrorCode, string> = {
-  not_configured: "AI is not configured. Set ANTHROPIC_API_KEY and start the AI service (npm run start:ai).",
+  not_configured: "AI is not configured. Put GROQ_API_KEY (or ANTHROPIC_API_KEY) in ai/.env and start the AI service (npm run start:ai).",
   verifier_unreachable: "The AI service couldn't reach the verifier, so there is no evidence to analyse.",
   model_error: "The AI model call failed.",
   refusal: "The model declined this request.",

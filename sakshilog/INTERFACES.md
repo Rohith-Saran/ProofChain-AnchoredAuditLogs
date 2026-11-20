@@ -168,8 +168,12 @@ is rejected whole, not trimmed, regardless of what the model intended.
   citation checker) and returns a fresh `IncidentReport`. **503**, not a fabricated 200, if
   `ANTHROPIC_API_KEY` isn't set, the verifier is unreachable, or the model call fails -
   `evidence/src/aiReport.ts`'s client already treats any non-200 here as "no report".
-- Env: `ANTHROPIC_API_KEY` (required to generate anything), `ANTHROPIC_MODEL` (default
-  `claude-opus-5-5`), `VERIFIER_URL` (default `http://127.0.0.1:4004`), `PORT`/`AI_PORT`
+- Provider: Groq (`GROQ_API_KEY`, `GROQ_MODEL`, default `openai/gpt-oss-120b`, strict
+  JSON-schema output) or Anthropic (`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, default
+  `claude-opus-5-5`). `AI_PROVIDER=groq|anthropic` forces one; otherwise whichever key is set
+  is used, Anthropic first. Keys go in `ai/.env` (gitignored; template `ai/.env.example`),
+  which `npm run start:ai` and start-all.sh/.bat load automatically.
+- Other env: `VERIFIER_URL` (default `http://127.0.0.1:4004`), `PORT`/`AI_PORT`
   (default 4005), `AI_CACHE_TTL_MS` (default 60000), `AI_ASK_RATE_LIMIT` (questions/min, default 10)
 - Errors carry a `code`: **503** `not_configured` / `verifier_unreachable`, **502**
   `model_error` / `refusal` / `truncated`, **400** `bad_request`, **429** `rate_limited`.

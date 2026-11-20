@@ -24,12 +24,16 @@ start "Collector (:4002)" cmd /k "cd collector && node --experimental-strip-type
 echo [5/7] Starting Victim Agent on http://127.0.0.1:4001 ...
 start "Victim Agent (:4001)" cmd /k "cd agent && node --experimental-strip-types src/server.ts"
 
-if defined ANTHROPIC_API_KEY (
+set "START_AI="
+if defined ANTHROPIC_API_KEY set "START_AI=1"
+if defined GROQ_API_KEY set "START_AI=1"
+if exist ai\.env set "START_AI=1"
+if defined START_AI (
   echo [6/7] Starting AI Incident Investigator on http://127.0.0.1:4005 ...
-  start "AI Investigator (:4005)" cmd /k "cd ai && node --experimental-strip-types src/server.ts"
+  start "AI Investigator (:4005)" cmd /k "cd ai && node --env-file-if-exists=.env --experimental-strip-types src/server.ts"
   set "AI_INVESTIGATOR_URL=http://127.0.0.1:4005"
 ) else (
-  echo [6/7] Skipping AI Incident Investigator ^(ANTHROPIC_API_KEY not set^) ...
+  echo [6/7] Skipping AI Incident Investigator ^(no GROQ_API_KEY / ANTHROPIC_API_KEY, and no ai\.env^) ...
 )
 
 echo [7/7] Starting Verifier Service on http://127.0.0.1:4004 ...

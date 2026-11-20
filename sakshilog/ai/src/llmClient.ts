@@ -1,16 +1,38 @@
 /**
- * The one place the AI service talks to the Anthropic API. Every feature asks for JSON
- * matching a schema (structured outputs), so nothing downstream ever parses free text.
- * The model's output is still treated as untrusted: the schema guarantees its shape, not
- * its honesty — each feature runs its own code-side checks afterwards.
+ * The one place the AI service talks to a model. Two providers:
+ *  - Anthropic (Claude) via the official SDK — set ANTHROPIC_API_KEY.
+ *  - Groq via its OpenAI-compatible HTTP API — set GROQ_API_KEY.
+ * AI_PROVIDER ("anthropic" | "groq") picks one explicitly; otherwise whichever key is set
+ * is used, Anthropic first.
  *
- * Forced tool_choice ({type:"tool"}) is not used: current models (Claude Opus 5.5 /
- * Sonnet 5.5) reject it with a 400. output_config.format replaces it.
+ * Every feature asks for JSON matching a schema, so nothing downstream parses free text.
+ * The model's output is still untrusted: the schema guarantees its shape, not its honesty —
+ * each feature runs its own code-side checks afterwards, whichever provider answered.
  */
 import Anthropic from "@anthropic-ai/sdk";
 import type { RawClaim } from "./investigator.ts";
 
-export const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+export type Provider = "anthropic" | "groq";
+
+export function activeProvider(): Provider {
+  const explicit = process.env.AI_PROVIDER?.toLowerCase();
+  if (explicit === "groq" || explicit === "anthropic") return explicit;
+  if (process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) return "anthropic";
+  if (process.env.GROQ_API_KEY) return "groq";
+  return "anthropic";
+}
+
+export function activeModel(): string {
+  return activeProvider() === "groq"
+    ? process.env.GROQ_MODEL || "openai/gpt-oss-120b"
+    : process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+}
+
+export function isModelConfigured(): boolean {
+  return activeProvider() === "groq"
+    ? Boolean(process.env.GROQ_API_KEY)
+    : Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+}
 
 export type Effort = "low" | "medium" | "high";
 
@@ -27,36 +49,44 @@ export class AiModelError extends Error {
   readonly code = "model_error";
 }
 
-let client: Anthropic | null = null;
-
-export function isModelConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
-}
-
-function getClient(): Anthropic {
-  if (!isModelConfigured()) {
-    throw new AiNotConfiguredError("ANTHROPIC_API_KEY not set — AI features are not configured");
-  }
-  if (!client) client = new Anthropic();
-  return client;
-}
-
 export interface StructuredCall {
   system: string;
   user: string;
-  /** JSON schema for the reply; must set additionalProperties:false and required. */
+  /** JSON schema for the reply; must set additionalProperties:false and list every property in required. */
   schema: Record<string, unknown>;
   effort: Effort;
   maxTokens?: number;
 }
 
-export async function callStructured<T>({ system, user, schema, effort, maxTokens = 16000 }: StructuredCall): Promise<T> {
-  const anthropic = getClient();
+export async function callStructured<T>(call: StructuredCall): Promise<T> {
+  if (!isModelConfigured()) {
+    const key = activeProvider() === "groq" ? "GROQ_API_KEY" : "ANTHROPIC_API_KEY";
+    throw new AiNotConfiguredError(`${key} not set — AI features are not configured`);
+  }
+  return activeProvider() === "groq" ? callGroq<T>(call) : callAnthropic<T>(call);
+}
+
+function parseJson<T>(text: string): T {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new AiModelError("The model's reply was not valid JSON");
+  }
+}
+
+// ---------------------------------------------------------------- Anthropic
+
+let anthropic: Anthropic | null = null;
+
+async function callAnthropic<T>({ system, user, schema, effort, maxTokens = 16000 }: StructuredCall): Promise<T> {
+  if (!anthropic) anthropic = new Anthropic();
 
   let response: Anthropic.Beta.BetaMessage;
   try {
+    // Forced tool_choice isn't used: current Claude models reject it. output_config.format
+    // gives the same structured guarantee.
     response = await anthropic.beta.messages.create({
-      model: MODEL,
+      model: activeModel(),
       max_tokens: maxTokens,
       // On a policy decline the API re-runs the request on a fallback model in the same call.
       betas: ["server-side-fallback-2026-07-01"],
@@ -75,23 +105,105 @@ export async function callStructured<T>({ system, user, schema, effort, maxToken
     throw new AiModelError(`Anthropic API unreachable: ${(err as Error).message}`);
   }
 
-  if (response.stop_reason === "refusal") {
-    throw new AiRefusalError("The model declined this request");
-  }
-  if (response.stop_reason === "max_tokens") {
-    throw new AiTruncatedError("The model's reply was cut off before it finished");
-  }
+  if (response.stop_reason === "refusal") throw new AiRefusalError("The model declined this request");
+  if (response.stop_reason === "max_tokens") throw new AiTruncatedError("The model's reply was cut off before it finished");
 
   const text = response.content
     .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
     .map((b) => b.text)
     .join("");
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    throw new AiModelError("The model's reply was not valid JSON");
+  return parseJson<T>(text);
+}
+
+// ---------------------------------------------------------------- Groq
+
+const GROQ_URL = process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1/chat/completions";
+
+interface GroqResponseBody {
+  choices?: { finish_reason?: string; message?: { content?: string | null; refusal?: string | null } }[];
+  error?: { message?: string; type?: string };
+}
+
+/** Turns a Groq HTTP response into the parsed JSON reply or a typed error. Pure, for testing. */
+export function groqResult<T>(status: number, body: GroqResponseBody | null): T {
+  if (status === 401 || status === 403) {
+    throw new AiNotConfiguredError(`Groq rejected the API key: ${body?.error?.message ?? `HTTP ${status}`}`);
+  }
+  if (status === 429) throw new AiModelError("Groq rate limit reached — wait a minute and try again");
+  if (status === 413) {
+    throw new AiModelError(`Request is larger than your Groq tier allows per minute — lower AI_MAX_VERIFIED. ${body?.error?.message ?? ""}`.trim());
+  }
+  if (status < 200 || status >= 300) {
+    throw new AiModelError(`Groq API error ${status}: ${body?.error?.message ?? "no details"}`);
+  }
+
+  const choice = body?.choices?.[0];
+  if (!choice) throw new AiModelError("Groq returned no answer");
+  if (choice.message?.refusal) throw new AiRefusalError("The model declined this request");
+  if (choice.finish_reason === "length") throw new AiTruncatedError("The model's reply was cut off before it finished");
+  return parseJson<T>(choice.message?.content ?? "");
+}
+
+/** Seconds to wait before one automatic retry on a 429, or null if not worth waiting. */
+export function groqRetryDelaySeconds(
+  status: number,
+  retryAfter: string | null,
+  maxWait = Number(process.env.GROQ_MAX_RETRY_WAIT_S || 60)
+): number | null {
+  if (status !== 429 || retryAfter === null) return null;
+  const seconds = Number(retryAfter);
+  return Number.isFinite(seconds) && seconds >= 0 && seconds <= maxWait ? seconds : null;
+}
+
+// One Groq call at a time: the free tier's limit is per minute, so parallel panels would
+// just trip it together. Queued calls wait their turn instead of failing.
+let groqQueue: Promise<unknown> = Promise.resolve();
+
+function callGroq<T>(call: StructuredCall): Promise<T> {
+  const run = groqQueue.then(() => callGroqNow<T>(call));
+  groqQueue = run.catch(() => undefined);
+  return run;
+}
+
+async function callGroqNow<T>({ system, user, schema, effort, maxTokens }: StructuredCall): Promise<T> {
+  // Groq's free tier counts hidden reasoning tokens against the same 8,000 tokens/minute as
+  // everything else, so reasoning stays low and answers are capped unless overridden.
+  const request = JSON.stringify({
+    model: activeModel(),
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    // Strict mode: constrained decoding against our schema (every property required,
+    // additionalProperties:false — which all feature schemas already follow).
+    response_format: { type: "json_schema", json_schema: { name: "sakshilog_output", strict: true, schema } },
+    reasoning_effort: process.env.GROQ_REASONING_EFFORT || (effort === "high" ? "low" : effort),
+    max_completion_tokens: maxTokens ?? Number(process.env.GROQ_MAX_COMPLETION_TOKENS || 3000),
+  });
+
+  for (let attempt = 0; ; attempt++) {
+    let resp: Response;
+    try {
+      resp = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
+        body: request,
+        signal: AbortSignal.timeout(120_000),
+      });
+    } catch (err) {
+      throw new AiModelError(`Groq API unreachable: ${(err as Error).message}`);
+    }
+    const delay = attempt < 2 ? groqRetryDelaySeconds(resp.status, resp.headers.get("retry-after")) : null;
+    if (delay !== null) {
+      await new Promise((r) => setTimeout(r, delay * 1000 + 250));
+      continue;
+    }
+    const body = (await resp.json().catch(() => null)) as GroqResponseBody | null;
+    return groqResult<T>(resp.status, body);
   }
 }
+
+// ---------------------------------------------------------------- incident report
 
 const CLAIMS_SCHEMA = {
   type: "object",

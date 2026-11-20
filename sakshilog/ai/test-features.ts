@@ -9,6 +9,17 @@ import { toCertInReport, REPORTING_WINDOW_MS } from "./src/certIn.ts";
 import { buildAskPrompt, createRateLimiter, toLogAnswer, validateQuestion } from "./src/askLogs.ts";
 import { lookupTechnique, TECHNIQUE_IDS } from "./src/mitre.ts";
 import { cached, clearCache } from "./src/cache.ts";
+import {
+  activeProvider,
+  activeModel,
+  isModelConfigured,
+  groqResult,
+  groqRetryDelaySeconds,
+  AiNotConfiguredError,
+  AiTruncatedError,
+  AiModelError,
+  AiRefusalError,
+} from "./src/llmClient.ts";
 
 let passed = 0;
 function check(cond: boolean, msg: string) {
@@ -166,6 +177,57 @@ console.log("\n[cache] one call per evidence state, failures not cached");
     return Promise.resolve(1);
   });
   check(retried, "a failed call is retried instead of served from cache");
+}
+
+console.log("\n[provider] Groq selection and response handling");
+{
+  const KEYS = ["AI_PROVIDER", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "GROQ_API_KEY", "GROQ_MODEL"];
+  const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
+  const clear = () => KEYS.forEach((k) => delete process.env[k]);
+
+  clear();
+  process.env.GROQ_API_KEY = "test";
+  check(activeProvider() === "groq" && isModelConfigured(), "a Groq key alone selects Groq");
+  check(activeModel() === "openai/gpt-oss-120b", "Groq defaults to openai/gpt-oss-120b");
+  process.env.ANTHROPIC_API_KEY = "test";
+  check(activeProvider() === "anthropic", "with both keys, Anthropic is used unless AI_PROVIDER says otherwise");
+  process.env.AI_PROVIDER = "groq";
+  check(activeProvider() === "groq", "AI_PROVIDER=groq forces Groq");
+  clear();
+  process.env.AI_PROVIDER = "groq";
+  check(!isModelConfigured(), "Groq selected without a key is not configured");
+  clear();
+  for (const [k, v] of Object.entries(saved)) if (v !== undefined) process.env[k] = v;
+
+  const throwsAs = (fn: () => unknown, cls: abstract new (...args: never[]) => Error) => {
+    try {
+      fn();
+      return false;
+    } catch (e) {
+      return e instanceof cls;
+    }
+  };
+  const ok = groqResult<{ a: number }>(200, { choices: [{ finish_reason: "stop", message: { content: '{"a":1}' } }] });
+  check(ok.a === 1, "a normal Groq reply is parsed");
+  check(throwsAs(() => groqResult(401, { error: { message: "Invalid API Key" } }), AiNotConfiguredError), "a rejected key reports not_configured");
+  check(throwsAs(() => groqResult(429, null), AiModelError), "a rate limit is a model error, not a crash");
+  check(
+    throwsAs(() => groqResult(200, { choices: [{ finish_reason: "length", message: { content: '{"a"' } }] }), AiTruncatedError),
+    "a cut-off reply is reported as truncated"
+  );
+  check(
+    throwsAs(() => groqResult(200, { choices: [{ finish_reason: "stop", message: { content: "not json" } }] }), AiModelError),
+    "a non-JSON reply is rejected"
+  );
+  check(
+    throwsAs(() => groqResult(200, { choices: [{ finish_reason: "stop", message: { content: null, refusal: "no" } }] }), AiRefusalError),
+    "a refusal is reported as a refusal"
+  );
+  check(
+    groqRetryDelaySeconds(429, "30") === 30 && groqRetryDelaySeconds(429, "120") === null && groqRetryDelaySeconds(429, null) === null,
+    "a Groq rate-limit wait up to 60s is retried; a longer or unknown one is not"
+  );
+  check(groqRetryDelaySeconds(500, "1") === null, "only rate limits are retried");
 }
 
 console.log(`\nALL ${passed} AI FEATURE CHECKS PASSED`);

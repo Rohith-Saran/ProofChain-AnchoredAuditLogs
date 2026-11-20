@@ -5,7 +5,8 @@ import {
   callInvestigatorModel,
   callStructured,
   isModelConfigured,
-  MODEL,
+  activeModel,
+  activeProvider,
   AiNotConfiguredError,
   AiModelError,
   AiRefusalError,
@@ -21,9 +22,20 @@ const PORT = Number(process.env.PORT || process.env.AI_PORT || 4005);
 const VERIFIER_URL = process.env.VERIFIER_URL || "http://127.0.0.1:4004";
 const CACHE_TTL_MS = Number(process.env.AI_CACHE_TTL_MS || 60_000);
 
+/** How much log evidence goes into a prompt. Groq's free tier allows 8,000 tokens per
+ *  minute per model, so it gets a much smaller window than Claude. AI_MAX_VERIFIED overrides. */
+function loadEvidence() {
+  const groq = activeProvider() === "groq";
+  const maxVerified = Number(process.env.AI_MAX_VERIFIED || (groq ? 40 : 300));
+  return fetchEvidenceContext(VERIFIER_URL, { maxVerified, maxFlagged: groq ? 30 : 200, neighborhood: groq ? 5 : 10 });
+}
+
 function requireModel(): void {
   // Checked before fetching evidence so an unconfigured service fails fast and says why.
-  if (!isModelConfigured()) throw new AiNotConfiguredError("ANTHROPIC_API_KEY not set — AI features are not configured");
+  if (!isModelConfigured()) {
+    const key = activeProvider() === "groq" ? "GROQ_API_KEY" : "ANTHROPIC_API_KEY or GROQ_API_KEY";
+    throw new AiNotConfiguredError(`${key} not set — AI features are not configured`);
+  }
 }
 
 /** The whole pipeline: fetch live verdicts -> prompt -> LLM -> citation checker. Throws
@@ -31,7 +43,7 @@ function requireModel(): void {
  *  model call itself fails — callers decide how to surface that. */
 export async function generateIncidentReport(): Promise<AiIncidentReport> {
   requireModel();
-  const ctx = await fetchEvidenceContext(VERIFIER_URL);
+  const ctx = await loadEvidence();
   return cached(evidenceKey("incident-report", ctx), CACHE_TTL_MS, async () => {
     const rawClaims = await callInvestigatorModel(SYSTEM_PROMPT, buildPrompt(ctx));
     return toIncidentReport(rawClaims, ctx.verifiedSeqs);
@@ -41,14 +53,14 @@ export async function generateIncidentReport(): Promise<AiIncidentReport> {
 /** Demo / rehearsal pipeline: runs real citation checker against live verifier verdicts
  *  with candidate claims, demonstrating live verification and blocked claim rejection. */
 export async function generateDemoReport(): Promise<AiIncidentReport> {
-  const ctx = await fetchEvidenceContext(VERIFIER_URL);
+  const ctx = await loadEvidence();
   const rawClaims = generateDemoClaims(ctx);
   return toIncidentReport(rawClaims, ctx.verifiedSeqs);
 }
 
 export async function generateAttackTimeline() {
   requireModel();
-  const ctx = await fetchEvidenceContext(VERIFIER_URL);
+  const ctx = await loadEvidence();
   return cached(evidenceKey("attack-timeline", ctx), CACHE_TTL_MS, async () => {
     const raw = await callStructured<{ steps?: RawTimelineStep[] }>({
       system: TIMELINE_SYSTEM,
@@ -62,7 +74,7 @@ export async function generateAttackTimeline() {
 
 export async function generateCertInReport() {
   requireModel();
-  const ctx = await fetchEvidenceContext(VERIFIER_URL);
+  const ctx = await loadEvidence();
   return cached(evidenceKey("cert-in", ctx), CACHE_TTL_MS, async () => {
     const raw = await callStructured<RawCertInReport>({
       system: CERT_IN_SYSTEM,
@@ -76,7 +88,7 @@ export async function generateCertInReport() {
 
 export async function answerQuestion(question: string) {
   requireModel();
-  const ctx = await fetchEvidenceContext(VERIFIER_URL);
+  const ctx = await loadEvidence();
   return cached(evidenceKey("ask", ctx, question.toLowerCase()), CACHE_TTL_MS, async () => {
     const raw = await callStructured<RawLogAnswer>({
       system: ASK_SYSTEM,
@@ -116,7 +128,8 @@ export function createAiApp() {
       status: "ok",
       role: "sakshilog-ai-investigator",
       modelConfigured: isModelConfigured(),
-      model: MODEL,
+      provider: activeProvider(),
+      model: activeModel(),
       verifierUrl: VERIFIER_URL,
       features: ["incident-report", "attack-timeline", "cert-in-report", "ask"],
     });
@@ -177,11 +190,11 @@ export function createAiApp() {
 if (process.argv[1] && (process.argv[1].endsWith("server.ts") || process.argv[1].endsWith("server.js"))) {
   const { app } = createAiApp();
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[SakshiLog AI] Listening on http://0.0.0.0:${PORT} (model ${MODEL})`);
+    console.log(`[SakshiLog AI] Listening on http://0.0.0.0:${PORT} (provider ${activeProvider()}, model ${activeModel()})`);
     console.log(
       isModelConfigured()
         ? "[SakshiLog AI] Credentials set — incident report, attack timeline, CERT-In report and Ask-the-Logs are live."
-        : "[SakshiLog AI] ANTHROPIC_API_KEY not set — every AI route returns 503 not_configured until it is."
+        : "[SakshiLog AI] No API key set (ANTHROPIC_API_KEY or GROQ_API_KEY) — AI routes return 503 not_configured until one is."
     );
   });
 }
