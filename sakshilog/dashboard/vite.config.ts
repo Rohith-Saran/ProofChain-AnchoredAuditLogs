@@ -5,7 +5,14 @@ import path from "node:path";
 
 export default defineConfig({
   root: path.resolve(__dirname),
-  plugins: [react()],
+  plugins: [
+    react({
+      babel: {
+        configFile: false,
+        babelrc: false,
+      },
+    }),
+  ],
   css: {
     postcss: {
       plugins: [],
