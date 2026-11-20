@@ -39,5 +39,31 @@ Deployment info (address, chainId, abi, deployBlock) is in contracts/deployments
 ## Verdicts
 OK, MODIFIED, DELETED, INSERTED, REORDERED, TRUNCATED, UNANCHORED_WINDOW, ANCHOR_SILENCE
 
-## Ports (fill in)
-chain: 8545 | agent: | collector: | anchor-service: | verifier: | dashboard:
+## Ports
+chain: 8545 | agent: 4001 | collector: 4002 | anchor-service: 4003 | verifier: 4004 | dashboard: 5173
+
+## M2 Component Endpoints
+
+### Agent (Port 4001)
+- `GET /health` - status, current seq, total logs, baseline mode
+- `GET /api/logs?limit=50&offset=0&batchId=0` - get paginated logs
+- `GET /api/stats` - stats on SQLite logs, load generator, and anchoring
+- `POST /api/logs/write` - write custom log `{ message, source?, level?, host? }`
+- `POST /api/actions/simulate` - simulate realistic activity `{ type: "login"|"sudo"|"file"|"admin" }`
+- `POST /api/load/start` - start load generator `{ rate: 10..1000 }` (logs/sec)
+- `POST /api/load/stop` - stop load generator
+- `POST /api/baseline` - toggle baseline mode `{ enabled: boolean }` (anchoring suspended, plain hash chain)
+- `POST /api/anchor/trigger` - manually trigger Merkle batch and anchor
+
+### Collector (Port 4002)
+- `GET /health` - status, total off-host logs, total batches
+- `POST /api/collector/ingest` - ingest log entry or array of entries from agent immediately
+- `POST /api/collector/batch` - store batch mapping `{ batchId, startSeq, endSeq, merkleRoot, lastChainHash, txHash, blockNumber }`
+- `GET /api/collector/logs` - query off-host logs for verifier comparison
+- `GET /api/collector/entry/:seq` - query specific off-host entry for forensic diff
+- `GET /api/collector/batches` - list all anchored batches
+- `GET /api/collector/stats` - get total off-host counts
+
+### Evidence
+- `npm run export` - generates CERT-In format `evidence-pack.json` & markdown report
+- `node verify-standalone.js <pack.json> [rpcUrl]` - standalone zero-dependency auditor verifier script

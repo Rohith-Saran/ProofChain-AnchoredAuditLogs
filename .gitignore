@@ -1,0 +1,126 @@
+# ==============================================================================
+# SakshiLog - Root .gitignore
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Sensitive & Secret Files
+# ------------------------------------------------------------------------------
+.env
+.env.*
+*.env
+*.secret
+*.key
+*.pem
+*.pk
+*.keystore
+*.cert
+*.pfx
+*.p12
+credentials.json
+secrets/
+*id_rsa*
+*id_ed25519*
+
+# ------------------------------------------------------------------------------
+# 2. Dependencies & Package Managers
+# ------------------------------------------------------------------------------
+node_modules/
+*/node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# ------------------------------------------------------------------------------
+# 3. Build & Compiler Outputs
+# ------------------------------------------------------------------------------
+dist/
+*/dist/
+build/
+*/build/
+out/
+*/out/
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+
+# ------------------------------------------------------------------------------
+# 4. Smart Contracts & Blockchain Artifacts
+# ------------------------------------------------------------------------------
+artifacts/
+*/artifacts/
+cache/
+*/cache/
+typechain-types/
+*/typechain-types/
+contracts/deployments/
+*/deployments/
+
+# ------------------------------------------------------------------------------
+# 5. Databases, Stores & Backups
+# ------------------------------------------------------------------------------
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+victim.db
+collector.db
+*.bak
+*.backup
+
+# ------------------------------------------------------------------------------
+# 6. Logs & Debug Traces
+# ------------------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+hardhat.log
+
+# ------------------------------------------------------------------------------
+# 7. Testing, Benchmarking & Temporary Files
+# ------------------------------------------------------------------------------
+tmp/
+temp/
+tmp-*/
+*.tmp
+coverage/
+.nyc_output/
+bench/results/*.tmp
+bench/results/*.csv.tmp
+evidence-pack*.json
+evidence-pack*-report.md
+
+# ------------------------------------------------------------------------------
+# 8. OS & System Files
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# ------------------------------------------------------------------------------
+# 9. IDEs & Editors
+# ------------------------------------------------------------------------------
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+*~
