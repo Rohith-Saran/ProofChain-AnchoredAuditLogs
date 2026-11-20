@@ -1,6 +1,6 @@
 # Exposure window: fixed vs adaptive anchoring
 
-Generated 2026-11-20T14:39:37.045Z. Simulated timeline: quiet traffic from T=0s, a 6-attempt brute-force
+Generated 2026-11-20T20:56:01.731Z. Simulated timeline: quiet traffic from T=0s, a 6-attempt brute-force
 login burst starting T=20s, a new sudo-group member at T=23s, and the attacker deleting every
 still-unanchored line at T=23.5s. Both schedules run the real
 `RiskScorer` (`agent/src/riskScorer.ts`) against the identical event timeline.

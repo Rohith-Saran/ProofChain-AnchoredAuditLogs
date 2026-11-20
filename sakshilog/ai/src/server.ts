@@ -1,6 +1,6 @@
 import express from "express";
 import { fetchEvidenceContext, VerifierUnreachableError } from "./verifierClient.ts";
-import { buildPrompt, toIncidentReport, SYSTEM_PROMPT } from "./investigator.ts";
+import { buildPrompt, toIncidentReport, generateDemoClaims, SYSTEM_PROMPT } from "./investigator.ts";
 import {
   callInvestigatorModel,
   callStructured,
@@ -36,6 +36,14 @@ export async function generateIncidentReport(): Promise<AiIncidentReport> {
     const rawClaims = await callInvestigatorModel(SYSTEM_PROMPT, buildPrompt(ctx));
     return toIncidentReport(rawClaims, ctx.verifiedSeqs);
   });
+}
+
+/** Demo / rehearsal pipeline: runs real citation checker against live verifier verdicts
+ *  with candidate claims, demonstrating live verification and blocked claim rejection. */
+export async function generateDemoReport(): Promise<AiIncidentReport> {
+  const ctx = await fetchEvidenceContext(VERIFIER_URL);
+  const rawClaims = generateDemoClaims(ctx);
+  return toIncidentReport(rawClaims, ctx.verifiedSeqs);
 }
 
 export async function generateAttackTimeline() {
@@ -117,7 +125,19 @@ export function createAiApp() {
   // Called by evidence/src/aiReport.ts and the dashboard.
   app.get("/api/incident-report", async (req, res) => {
     try {
+      if (req.query.demo === "1" || req.query.demo === "true" || (!isModelConfigured() && process.env.ALLOW_DEMO_AI === "true")) {
+        return res.json(await generateDemoReport());
+      }
       res.json(await generateIncidentReport());
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  // Dedicated endpoint for demonstrating the citation checker live against real verifier verdicts
+  app.get("/api/incident-report/demo", async (req, res) => {
+    try {
+      res.json(await generateDemoReport());
     } catch (err) {
       sendError(res, err);
     }

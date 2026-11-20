@@ -124,3 +124,44 @@ export function toIncidentReport(
   const { claims, blockedClaims } = checkCitations(rawClaims, verifiedSeqs);
   return { claims, blockedClaims, generatedAt };
 }
+
+/**
+ * Synthesizes demonstration claims from real verifier context for live testing, rehearsals,
+ * or offline presentation mode: generates truthful claims from verified entries, plus one
+ * deliberately unverified/tampered claim (citing a flagged or nonexistent seq) so the
+ * citation checker's rejection can be visibly demonstrated live.
+ */
+export function generateDemoClaims(input: InvestigatorInput): RawClaim[] {
+  const claims: RawClaim[] = [];
+
+  // Generate 1-3 claims from real verified entries
+  for (const v of input.verifiedEntries.slice(0, 3)) {
+    claims.push({
+      text: `Verified security event: ${v.source}/${v.level} - "${v.message.slice(0, 75)}"`,
+      citedEntries: [v.seq],
+    });
+  }
+
+  if (input.verifiedEntries.length >= 2) {
+    claims.push({
+      text: `Sequence of verified operations confirmed between seq ${input.verifiedEntries[0].seq} and ${input.verifiedEntries[1].seq}.`,
+      citedEntries: [input.verifiedEntries[0].seq, input.verifiedEntries[1].seq],
+    });
+  }
+
+  // Inject 1 ungrounded or tampered claim to demonstrate citation checker enforcement
+  if (input.flaggedEntries.length > 0) {
+    const flagged = input.flaggedEntries[0];
+    claims.push({
+      text: `Attacker action was recorded modifying the system state (${flagged.detail || "tampered"}).`,
+      citedEntries: [flagged.seq],
+    });
+  } else {
+    claims.push({
+      text: `An undocumented administrative action was detected in unanchored memory.`,
+      citedEntries: [99999], // nonexistent seq
+    });
+  }
+
+  return claims;
+}

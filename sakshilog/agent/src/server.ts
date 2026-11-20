@@ -121,6 +121,36 @@ export function createAgentApp(dbFilePath = DB_PATH) {
     res.json({ success: true, actionType: type || "random", entry });
   });
 
+  // Adaptive anchoring live trigger (Phase 4a, M1): fire a burst of failed logins + privilege escalation
+  // to immediately demonstrate risk score spike (0 -> 1.0) and anchor interval shrinking (5s -> 1s)
+  app.post("/api/actions/burst", (req, res) => {
+    const count = Number(req.body?.count || 5);
+    const ip = req.body?.ip || "203.0.113.19";
+    const entries = [];
+    for (let i = 0; i < count; i++) {
+      entries.push(
+        chain.append({
+          source: "auth",
+          level: "warning",
+          message: `Failed password for invalid user hacker from ${ip} port ${51200 + i} ssh2`,
+          host: "victim-server",
+        })
+      );
+    }
+    if (req.body?.includeSudo !== false) {
+      entries.push(
+        chain.append({
+          source: "usermod",
+          level: "notice",
+          message: `add 'hacker' to group 'sudo'`,
+          host: "victim-server",
+        })
+      );
+    }
+    const risk = connector.getRiskState();
+    res.json({ success: true, count: entries.length, entries, risk });
+  });
+
   // Start / set load generator (10 to 1,000 logs/sec)
   app.post("/api/load/start", (req, res) => {
     const rate = Number(req.body.rate || 50);

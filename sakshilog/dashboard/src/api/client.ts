@@ -244,6 +244,27 @@ export const apiClient = {
     );
   },
 
+  async simulateBurst(): Promise<{ success: boolean; count?: number; risk?: RiskState }> {
+    return safeFetch<{ success: boolean; count?: number; risk?: RiskState }>(
+      `${AGENT_URL}/api/actions/burst`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: 5, includeSudo: true })
+      },
+      {
+        success: true,
+        count: 6,
+        risk: {
+          score: 1.0,
+          anchorIntervalMs: 1000,
+          reason: "5 failed logins in last 10s, new sudo-group member detected",
+          updatedAt: Date.now()
+        }
+      }
+    );
+  },
+
   // M3 & M4: Execute adversarial attack 1-8 via the Verifier service
   async executeAttack(
     attackId: number,

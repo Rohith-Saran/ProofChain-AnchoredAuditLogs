@@ -41,9 +41,9 @@ interface RiskEvent {
  *  so its discrete-event replica reschedules on exactly the same rule as the live agent. */
 export const RESCHEDULE_EPSILON_MS = 100;
 
-const FAILED_LOGIN_RE = /Failed password/i;
-const SUDO_FAILURE_RE = /incorrect password attempt/i;
-const NEW_SUDO_USER_RE = /add '.+' to group 'sudo'/i;
+const FAILED_LOGIN_RE = /Failed password|authentication failure|invalid user|pam_authenticate failure|FAILED LOGIN/i;
+const SUDO_FAILURE_RE = /incorrect password attempt|sudo.*authentication failure/i;
+const NEW_SUDO_USER_RE = /add '.+' to group '(sudo|wheel)'|added to group '(sudo|wheel)'|usermod -aG (sudo|wheel)|NOPASSWD/i;
 
 const DEFAULT_CONFIG: Required<RiskConfig> = {
   maxIntervalMs: 5000,
@@ -53,9 +53,21 @@ const DEFAULT_CONFIG: Required<RiskConfig> = {
 };
 
 /** Pure mapping from a risk score to the anchor interval it drives. Shared by the live
- *  scorer and the benchmark so both pick the exact same interval for the same score. */
-export function computeIntervalForScore(score: number, cfg: Required<RiskConfig> = DEFAULT_CONFIG): number {
+ *  scorer and the benchmark so both pick the exact same interval for the same score.
+ *  Supports continuous linear interpolation (default) or stepped threshold reduction. */
+export function computeIntervalForScore(
+  score: number,
+  cfg: Required<RiskConfig> = DEFAULT_CONFIG,
+  stepThresholds = false
+): number {
   const t = Math.max(0, Math.min(1, score / cfg.saturation));
+  if (stepThresholds) {
+    if (t >= 0.8) return cfg.minIntervalMs; // 1000ms
+    if (t >= 0.6) return Math.round(cfg.minIntervalMs + 0.25 * (cfg.maxIntervalMs - cfg.minIntervalMs)); // 2000ms
+    if (t >= 0.4) return Math.round(cfg.minIntervalMs + 0.50 * (cfg.maxIntervalMs - cfg.minIntervalMs)); // 3000ms
+    if (t >= 0.2) return Math.round(cfg.minIntervalMs + 0.75 * (cfg.maxIntervalMs - cfg.minIntervalMs)); // 4000ms
+    return cfg.maxIntervalMs; // 5000ms
+  }
   const interval = cfg.maxIntervalMs - t * (cfg.maxIntervalMs - cfg.minIntervalMs);
   return Math.round(interval);
 }

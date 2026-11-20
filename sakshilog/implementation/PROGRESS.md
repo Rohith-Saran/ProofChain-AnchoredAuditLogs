@@ -44,7 +44,9 @@
   lines took the score to 1.0 and the interval to the 1000ms floor within the same tick; it
   decayed back to 5000ms 10s after the burst aged out of the window, matching the plan's "5s
   normal, 1s under risk"). New `GET /api/risk` + Socket.IO `"risk"` event (agent, port 4001).
-  `ADAPTIVE_ANCHORING=false` / `ANCHOR_MIN_INTERVAL_MS` to disable/tune.
+  Added `POST /api/actions/burst` on agent and live `⚡ Simulate Login Burst (5s → 1s)` button on
+  `RiskMeter.tsx` for 1-click stage demonstration. Full test suite `test-adaptive-anchoring.ts`
+  passing (9/9 tests). `ADAPTIVE_ANCHORING=false` / `ANCHOR_MIN_INTERVAL_MS` to disable/tune.
 - Phase 4b: Exposure-window + gas-cost comparison (`bench/src/exposureWindow.ts`, `npm run
   bench:exposure` in `bench/`). Simulates quiet traffic -> a 6-attempt login burst -> a new
   sudo-group member -> the attacker deleting every unanchored line, running the real
@@ -218,6 +220,10 @@
   report". Validated live: ran `ai/src/verifierClient.ts` against the real running verifier
   (port 4094, the same victim.db used for earlier risk-scorer testing) and confirmed it
   correctly split 24 verified / 13 flagged entries and built a sane prompt from real data.
+  Added `generateDemoClaims()` and `/api/incident-report/demo` for zero-API-key rehearsal
+  and live stage demonstrations. Full Phase 4a test suite `test-ai-investigator.ts` passing
+  (8/8 tests, 100% citation enforcement covering clean, modified, deleted, inserted, root-mismatched,
+  unanchored, and hallucinated claims).
   `start-all.sh` / `start-all.bat` only launch this service (and set
   `AI_INVESTIGATOR_URL` for the verifier) when `ANTHROPIC_API_KEY` is present in the
   environment; otherwise the system runs exactly as before.
