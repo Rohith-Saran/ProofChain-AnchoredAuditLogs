@@ -53,14 +53,26 @@ export interface Deployment {
   abi: ethers.InterfaceAbi;
 }
 
-/** Contract revert decoded into a named error, e.g. BadBatchId { expected, got }. */
+/**
+ * Contract revert decoded into a named error, e.g. BadBatchId { expected, got }.
+ *
+ * Deliberately avoids TypeScript constructor parameter properties (`public readonly x`
+ * in the signature): that shorthand is not erasable syntax, so it breaks under
+ * `node --experimental-strip-types` (strip-only mode, used by agent/ and verifier/ to
+ * run .ts files directly) even though it's fine under a full transpiler like tsx.
+ */
 export class AnchorError extends Error {
+  readonly reason: "NotAnchorer" | "BadBatchId" | "InvalidRange" | "BatchNotFound" | string;
+  readonly args: Record<string, unknown>;
+
   constructor(
-    public readonly reason: "NotAnchorer" | "BadBatchId" | "InvalidRange" | "BatchNotFound" | string,
-    public readonly args: Record<string, unknown>,
+    reason: "NotAnchorer" | "BadBatchId" | "InvalidRange" | "BatchNotFound" | string,
+    args: Record<string, unknown>,
     cause?: unknown,
   ) {
     super(`AnchorRegistry reverted: ${reason} ${JSON.stringify(args, bigintReplacer)}`);
+    this.reason = reason;
+    this.args = args;
     this.name = "AnchorError";
     if (cause) (this as { cause?: unknown }).cause = cause;
   }
@@ -73,7 +85,7 @@ export const HARDHAT_DEV_KEY_0 =
   "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
 const DEFAULT_DEPLOYMENT_FILE = path.resolve(
-  __dirname,
+  import.meta.dirname,
   "..",
   "..",
   "contracts",

@@ -1,0 +1,167 @@
+{
+  "generatedAt": "2026-11-20T10:55:45.102Z",
+  "config": {
+    "runsPerAttack": 20,
+    "cleanRuns": 20,
+    "scenarioSize": 200,
+    "batchSize": 50,
+    "anchorIntervalMs": 5000
+  },
+  "attacks": [
+    {
+      "id": 1,
+      "name": "edit-line",
+      "runs": 20,
+      "baselineDetectionRate": 1,
+      "sakshiDetectionRate": 1,
+      "sakshiVerdictAccuracy": 1,
+      "avgLatencyMs": 1.2071,
+      "p95LatencyMs": 2.9904
+    },
+    {
+      "id": 2,
+      "name": "delete-line",
+      "runs": 20,
+      "baselineDetectionRate": 1,
+      "sakshiDetectionRate": 1,
+      "sakshiVerdictAccuracy": 1,
+      "avgLatencyMs": 0.9666,
+      "p95LatencyMs": 1.8603
+    },
+    {
+      "id": 3,
+      "name": "insert-fake-line",
+      "runs": 20,
+      "baselineDetectionRate": 1,
+      "sakshiDetectionRate": 1,
+      "sakshiVerdictAccuracy": 1,
+      "avgLatencyMs": 0.9676,
+      "p95LatencyMs": 2.0153
+    },
+    {
+      "id": 4,
+      "name": "reorder-lines",
+      "runs": 20,
+      "baselineDetectionRate": 1,
+      "sakshiDetectionRate": 1,
+      "sakshiVerdictAccuracy": 1,
+      "avgLatencyMs": 0.7604,
+      "p95LatencyMs": 1.8004
+    },
+    {
+      "id": 5,
+      "name": "truncate-tail",
+      "runs": 20,
+      "baselineDetectionRate": 0,
+      "sakshiDetectionRate": 1,
+      "sakshiVerdictAccuracy": 1,
+      "avgLatencyMs": 0.8001,
+      "p95LatencyMs": 2.7283
+    },
+    {
+      "id": 6,
+      "name": "delete-and-recompute",
+      "runs": 20,
+      "baselineDetectionRate": 0,
+      "sakshiDetectionRate": 1,
+      "sakshiVerdictAccuracy": 1,
+      "avgLatencyMs": 0.7776,
+      "p95LatencyMs": 3.2168
+    }
+  ],
+  "falsePositives": {
+    "runs": 20,
+    "falsePositives": 0,
+    "falsePositiveSeqs": []
+  },
+  "silence": [
+    {
+      "idleSeconds": 0,
+      "expectedTriggered": false,
+      "actualTriggered": false,
+      "pass": true
+    },
+    {
+      "idleSeconds": 2,
+      "expectedTriggered": false,
+      "actualTriggered": false,
+      "pass": true
+    },
+    {
+      "idleSeconds": 4,
+      "expectedTriggered": false,
+      "actualTriggered": false,
+      "pass": true
+    },
+    {
+      "idleSeconds": 6,
+      "expectedTriggered": false,
+      "actualTriggered": false,
+      "pass": true
+    },
+    {
+      "idleSeconds": 8,
+      "expectedTriggered": false,
+      "actualTriggered": false,
+      "pass": true
+    },
+    {
+      "idleSeconds": 9,
+      "expectedTriggered": false,
+      "actualTriggered": false,
+      "pass": true
+    },
+    {
+      "idleSeconds": 10,
+      "expectedTriggered": false,
+      "actualTriggered": false,
+      "pass": true
+    },
+    {
+      "idleSeconds": 11,
+      "expectedTriggered": true,
+      "actualTriggered": true,
+      "pass": true
+    },
+    {
+      "idleSeconds": 12,
+      "expectedTriggered": true,
+      "actualTriggered": true,
+      "pass": true
+    },
+    {
+      "idleSeconds": 15,
+      "expectedTriggered": true,
+      "actualTriggered": true,
+      "pass": true
+    },
+    {
+      "idleSeconds": 20,
+      "expectedTriggered": true,
+      "actualTriggered": true,
+      "pass": true
+    },
+    {
+      "idleSeconds": 30,
+      "expectedTriggered": true,
+      "actualTriggered": true,
+      "pass": true
+    },
+    {
+      "idleSeconds": 45,
+      "expectedTriggered": true,
+      "actualTriggered": true,
+      "pass": true
+    },
+    {
+      "idleSeconds": 60,
+      "expectedTriggered": true,
+      "actualTriggered": true,
+      "pass": true
+    }
+  ],
+  "notes": [
+    "Attack 7 (kill the agent) and attack 8 (steal the key, overwrite a batch) are operational / contract-level, not per-entry — validated live by attacks/src/07-kill-agent.ts, attacks/src/08-steal-key-overwrite.ts, and anchor-service's smoke test.",
+    "Latency here is verifyLogs()'s own compute time against an in-memory scenario (sub-millisecond); it does not include the agent's anchor interval or network round trips. Exposure window and real end-to-end throughput are measured against the live pipeline (see implementation/PROGRESS.md, M1 log)."
+  ]
+}

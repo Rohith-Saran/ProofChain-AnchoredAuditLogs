@@ -38,5 +38,33 @@
 - Phase 5 Packaging & Orchestration:
   - Orchestration scripts provided for clean start and testing.
 
+## M3 log
+- Verifier (`verifier/`): pure `verifyLogs()` engine (batch-level Merkle root/lastChainHash check against
+  on-chain state, entry-level cross-check against the off-host collector for DELETED/INSERTED/MODIFIED/
+  REORDERED/TRUNCATED, silence detection) + `verifyBaseline()` (plain hash-chain-only check, for the
+  "obvious fix fails" demo). Express API on :4004 (`/api/verify`, `/api/verify/batch/:id`,
+  `/api/verify/baseline`, `/api/silence`). 9 unit tests (`verifier/test-verifier.ts`), all passing,
+  covering all 8 attacks against synthetic data with no live chain needed.
+- Attacks (`attacks/`): all 8 attack scripts, `node src/run.ts <1-8>`, operating directly on
+  `agent/victim.db` (attack 7 kills the agent's process by port; attack 8 uses the anchorer key
+  against the live contract). Validated live end-to-end against the real agent + collector +
+  local chain + verifier (attack 6 in particular: plain hash chain says "all good", SakshiLog
+  correctly names the deleted seq and flags every re-chained entry after it via the batch root
+  mismatch).
+- Bench (`bench/`): `npm run bench` runs attacks 1-6 20x each at random positions against a fresh
+  in-memory scenario (pure functions, no live chain), plus 20 clean runs and a silence-timing
+  sweep. Measured results in `bench/results/results.md` / `results.json` match the plan's expected
+  attack matrix exactly: attacks 1-4 caught by both baseline and SakshiLog, attacks 5-6 missed by
+  baseline but caught by SakshiLog, 0/20 false positives on clean runs, silence alert correctly
+  on/off at every tested idle gap.
+- Found + fixed two cross-cutting bugs blocking the whole pipeline on Windows, surfaced while
+  wiring the verifier to the real chain: (1) agent's dynamic `import()` of anchorClient.ts used a
+  bare Windows path instead of a file:// URL (silently swallowed by a try/catch, so anchoring
+  never actually reached the chain); (2) anchorClient.ts used a TS constructor parameter property
+  and bare `__dirname`, both of which break under `node --experimental-strip-types` / plain ESM.
+  Also added heartbeat anchoring to `agent/src/anchorServiceConnector.ts` (triggerBatch()
+  previously just returned null when idle instead of posting the empty-range heartbeat the
+  contract already supports) — without it, silence detection can't tell "idle" from "dead".
+
 ## Blockers
 -

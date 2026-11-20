@@ -4,6 +4,7 @@ import { CollectorClient } from "./collectorClient.ts";
 import type { Batch } from "./types.ts";
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { pathToFileURL } from "node:url";
 
 export interface AnchorConfig {
   intervalMs?: number;
@@ -66,7 +67,9 @@ export class AnchorConnector {
       // Try loading local anchorClient from anchor-service if contracts deployed
       const anchorClientPath = path.resolve(import.meta.dirname, "../../anchor-service/src/anchorClient.ts");
       if (fs.existsSync(anchorClientPath)) {
-        const mod = await import(anchorClientPath);
+        // pathToFileURL: a bare Windows absolute path ("C:\...") isn't a valid specifier
+        // for the ESM loader, which requires a file:// URL for absolute paths there.
+        const mod = await import(pathToFileURL(anchorClientPath).href);
         if (mod && mod.AnchorClient) {
           try {
             this.anchorClient = mod.AnchorClient.fromEnv();
@@ -92,77 +95,39 @@ export class AnchorConnector {
     this.isAnchoring = true;
     try {
       const unanchored = this.db.getUnanchoredEntries(1000);
-      if (unanchored.length === 0) {
-        // Heartbeat or idle
-        return null;
-      }
-
-      const startSeq = unanchored[0].seq;
-      const endSeq = unanchored[unanchored.length - 1].seq;
-      const lastEntry = unanchored[unanchored.length - 1];
-
-      const leafHashes = unanchored.map((e) => e.hash);
-      const tree = new MerkleTree(leafHashes);
-      const merkleRoot = tree.rootWith0x;
-      const lastChainHash = lastEntry.hash.startsWith("0x") ? lastEntry.hash : "0x" + lastEntry.hash;
 
       let batch: Batch;
+      let markStart = 0;
+      let markEnd = -1; // markEnd < markStart => nothing to mark anchored locally (heartbeat)
 
-      // 1. Try AnchorClient directly if initialized
-      if (this.anchorClient) {
-        const nextId = await this.anchorClient.nextBatchId();
-        const res = await this.anchorClient.anchor({
-          batchId: Number(nextId),
-          merkleRoot,
-          lastChainHash,
-          startSeq,
-          endSeq,
-        });
-        batch = {
-          batchId: Number(res.batchId),
-          startSeq,
-          endSeq,
-          merkleRoot,
-          lastChainHash,
-          txHash: res.txHash,
-          blockNumber: res.blockNumber,
-          timestamp: res.timestamp,
-        };
-      } else if (this.anchorServiceUrl) {
-        // 2. Try HTTP Anchor Service endpoint
-        const resp = await fetch(`${this.anchorServiceUrl}/api/anchor`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            merkleRoot,
-            lastChainHash,
-            startSeq,
-            endSeq,
-          }),
-        });
-        if (!resp.ok) {
-          throw new Error(`Anchor service HTTP error ${resp.status}`);
-        }
-        batch = (await resp.json()) as Batch;
+      if (unanchored.length === 0) {
+        // Heartbeat: no new logs this interval. Anchor an empty range so a dead agent
+        // (no heartbeats arriving at all) is distinguishable from a quiet one.
+        const startSeq = this.lastEndSeq + 1;
+        const endSeq = this.lastEndSeq;
+        const merkleRoot = "0x" + "0".repeat(64);
+        const lastChainHash = this.lastChainHash.startsWith("0x") ? this.lastChainHash : "0x" + this.lastChainHash;
+        batch = await this.submitAnchor(startSeq, endSeq, merkleRoot, lastChainHash);
       } else {
-        // 3. Fallback stand-in batch for testing when chain isn't booted yet
-        const currentBatchId = Math.floor(startSeq / 100);
-        batch = {
-          batchId: currentBatchId,
-          startSeq,
-          endSeq,
-          merkleRoot,
-          lastChainHash,
-          txHash: "0x" + "a".repeat(64),
-          blockNumber: 1,
-          timestamp: Math.floor(Date.now() / 1000),
-        };
+        const startSeq = unanchored[0].seq;
+        const endSeq = unanchored[unanchored.length - 1].seq;
+        const lastEntry = unanchored[unanchored.length - 1];
+
+        const leafHashes = unanchored.map((e) => e.hash);
+        const tree = new MerkleTree(leafHashes);
+        const merkleRoot = tree.rootWith0x;
+        const lastChainHash = lastEntry.hash.startsWith("0x") ? lastEntry.hash : "0x" + lastEntry.hash;
+
+        batch = await this.submitAnchor(startSeq, endSeq, merkleRoot, lastChainHash);
+        markStart = startSeq;
+        markEnd = endSeq;
+        this.lastChainHash = lastEntry.hash;
       }
 
-      // Mark logs in local DB
-      this.db.markAnchored(startSeq, endSeq, batch.batchId);
-      this.lastEndSeq = endSeq;
-      this.lastChainHash = lastEntry.hash;
+      this.lastEndSeq = batch.endSeq;
+      if (markEnd >= markStart) {
+        this.db.markAnchored(markStart, markEnd, batch.batchId);
+      }
 
       console.log(
         `[AnchorConnector] Anchored batch ${batch.batchId} (seq ${batch.startSeq}..${batch.endSeq}) ` +
@@ -181,6 +146,55 @@ export class AnchorConnector {
     } finally {
       this.isAnchoring = false;
     }
+  }
+
+  /** Submit one anchor (normal range or heartbeat) via whichever backend is available. */
+  private async submitAnchor(startSeq: number, endSeq: number, merkleRoot: string, lastChainHash: string): Promise<Batch> {
+    // 1. Try AnchorClient directly if initialized
+    if (this.anchorClient) {
+      const nextId = await this.anchorClient.nextBatchId();
+      const res = await this.anchorClient.anchor({
+        batchId: Number(nextId),
+        merkleRoot,
+        lastChainHash,
+        startSeq,
+        endSeq,
+      });
+      return {
+        batchId: Number(res.batchId),
+        startSeq,
+        endSeq,
+        merkleRoot,
+        lastChainHash,
+        txHash: res.txHash,
+        blockNumber: res.blockNumber,
+        timestamp: res.timestamp,
+      };
+    }
+
+    // 2. Try HTTP Anchor Service endpoint
+    if (this.anchorServiceUrl) {
+      const resp = await fetch(`${this.anchorServiceUrl}/api/anchor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ merkleRoot, lastChainHash, startSeq, endSeq }),
+      });
+      if (!resp.ok) throw new Error(`Anchor service HTTP error ${resp.status}`);
+      return (await resp.json()) as Batch;
+    }
+
+    // 3. Fallback stand-in batch for testing when chain isn't booted yet
+    const currentBatchId = Math.floor(startSeq / 100);
+    return {
+      batchId: currentBatchId,
+      startSeq,
+      endSeq,
+      merkleRoot,
+      lastChainHash,
+      txHash: "0x" + "a".repeat(64),
+      blockNumber: 1,
+      timestamp: Math.floor(Date.now() / 1000),
+    };
   }
 
   stop(): void {

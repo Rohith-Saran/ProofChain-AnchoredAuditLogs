@@ -2,6 +2,7 @@
   "name": "@sakshilog/anchor-service",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Anchors SakshiLog Merkle roots to AnchorRegistry; client library + (Phase 2) batching service",
   "main": "src/anchorClient.ts",
   "scripts": {

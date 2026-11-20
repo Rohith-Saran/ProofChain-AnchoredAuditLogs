@@ -1,0 +1,20 @@
+{
+  "name": "@sakshilog/attacks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Attack simulator: scripts 1-8 from the implementation plan, run as root against the victim's SQLite log store (and, for attack 8, against the AnchorRegistry contract).",
+  "main": "src/run.ts",
+  "scripts": {
+    "attack": "node --experimental-strip-types src/run.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ethers": "^6.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.8.3"
+  }
+}

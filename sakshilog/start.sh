@@ -1,5 +1,6 @@
 #!/bin/bash
-# SakshiLog start script (M1 + M2 pipeline)
+# SakshiLog start script (M1 + M2 + M3 pipeline)
+# Prereq: contracts chain + deploy already running (contracts: npm run node / npm run deploy:local)
 
 echo "Starting SakshiLog Collector on :4002..."
 cd collector && node --experimental-strip-types src/server.ts &
@@ -11,9 +12,16 @@ echo "Starting SakshiLog Victim Agent on :4001..."
 cd ../agent && node --experimental-strip-types src/server.ts &
 AGENT_PID=$!
 
+sleep 1
+
+echo "Starting SakshiLog Verifier on :4004..."
+cd ../verifier && node --experimental-strip-types src/server.ts &
+VERIFIER_PID=$!
+
 echo "SakshiLog services running."
 echo "Collector PID: $COLLECTOR_PID (http://localhost:4002)"
 echo "Agent PID: $AGENT_PID (http://localhost:4001)"
+echo "Verifier PID: $VERIFIER_PID (http://localhost:4004)"
 
-trap "kill $COLLECTOR_PID $AGENT_PID" EXIT
+trap "kill $COLLECTOR_PID $AGENT_PID $VERIFIER_PID" EXIT
 wait

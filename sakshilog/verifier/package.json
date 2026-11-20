@@ -1,0 +1,23 @@
+{
+  "name": "@sakshilog/verifier",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rebuilds hashes from remaining logs, compares against on-chain anchors and the off-host collector, and emits a per-entry verdict.",
+  "main": "src/server.ts",
+  "scripts": {
+    "start": "node --experimental-strip-types src/server.ts",
+    "test": "node --experimental-strip-types test-verifier.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ethers": "^6.13.0",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.8.3"
+  }
+}

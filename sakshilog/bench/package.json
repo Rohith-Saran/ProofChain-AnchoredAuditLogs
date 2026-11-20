@@ -1,0 +1,17 @@
+{
+  "name": "@sakshilog/bench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Benchmark runner: each attack 20x at random positions, baseline vs SakshiLog, detection rate / false positives / latency -> bench/results/results.md",
+  "main": "src/runBenchmark.ts",
+  "scripts": {
+    "bench": "node --experimental-strip-types src/runBenchmark.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.8.3"
+  }
+}
