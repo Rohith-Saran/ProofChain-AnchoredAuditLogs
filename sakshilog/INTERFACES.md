@@ -157,7 +157,7 @@ IncidentReport { claims: IncidentClaim[], blockedClaims: IncidentClaim[], genera
 ```
 
 ### AI Incident Investigator (`ai/`, M4 Phase 4a, port 4005)
-One LLM call (Anthropic, forced tool-use for structured output) over the verifier's own
+One LLM call (Anthropic, structured outputs via `output_config.format`) over the verifier's own
 `/api/verify` output, followed by a citation checker (`ai/src/investigator.ts::checkCitations`,
 ~50 lines, no LLM involved) that enforces the rule above. `ai/src/verifierClient.ts` only
 ever puts verdict-`OK` entries in the "safe to cite" set the model is given — a claim citing
@@ -169,8 +169,35 @@ is rejected whole, not trimmed, regardless of what the model intended.
   `ANTHROPIC_API_KEY` isn't set, the verifier is unreachable, or the model call fails -
   `evidence/src/aiReport.ts`'s client already treats any non-200 here as "no report".
 - Env: `ANTHROPIC_API_KEY` (required to generate anything), `ANTHROPIC_MODEL` (default
-  `claude-sonnet-5-5`), `VERIFIER_URL` (default `http://127.0.0.1:4004`), `PORT`/`AI_PORT`
-  (default 4005)
+  `claude-opus-5-5`), `VERIFIER_URL` (default `http://127.0.0.1:4004`), `PORT`/`AI_PORT`
+  (default 4005), `AI_CACHE_TTL_MS` (default 60000), `AI_ASK_RATE_LIMIT` (questions/min, default 10)
+- Errors carry a `code`: **503** `not_configured` / `verifier_unreachable`, **502**
+  `model_error` / `refusal` / `truncated`, **400** `bad_request`, **429** `rate_limited`.
+  Never a fabricated 200. (The old forced `tool_choice` was removed: current models reject it.)
+- Results are cached by evidence state (the tampering findings + silence alert) for
+  `AI_CACHE_TTL_MS`, and concurrent requests share one model call.
+
+### AI Analyst features (`ai/`, same service; dashboard `#/ai`)
+Rule for all three: **the model proposes, code verifies.** Two citation kinds
+(`ai/src/evidence.ts::partitionByEvidence`): `citedEntries` must be verdict-`OK` entries,
+`citedFindings` must be verifier-flagged entries (cited for the fact they were tampered
+with; the model only sees the verifier's `{seq, verdict, detail}` for them, never the
+attacker's row text). An item with no citation or any wrong citation is blocked whole.
+`UNANCHORED_WINDOW` entries are neither: not shown to the model, only counted.
+- `GET /api/attack-timeline` -> `AttackTimeline { steps, blockedSteps, generatedAt }`. Each
+  step's `technique` must be on the allowlist in `ai/src/mitre.ts` (schema enum + code
+  check); `firstTs` is computed from the cited entries, not written by the model; a
+  triggered silence alert adds a `source: "verifier"` step (T1562.001).
+- `GET /api/cert-in-report` -> `CertInReport`. Hosts/accounts/indicators must appear
+  verbatim in an entry they cite. `occurredAt`, `detectedAt` and `reportingDeadline`
+  (detected + 6h, CERT-In Directions No. 20(3)/2022) are computed in code.
+- `POST /api/ask {question}` (string, ≤500 chars) -> `LogAnswer { answer, blocked,
+  insufficientEvidence }`. The question is passed as delimited data, never as instructions.
+- Shared wire types live in `evidence/src/aiReport.ts` (dashboard mirror: `src/types.ts`).
+  The evidence pack now also carries `attackTimeline` and `certInReport` (null when the AI
+  service is unavailable), and its markdown report has a CERT-In and a MITRE section.
+- `cd ai && npm test` also runs `test-features.ts` (30 checks, no key needed);
+  `dashboard/src/test/AiAnalyst.test.tsx` renders the panels in mock and not-configured mode.
 - `cd ai && npm test` (M3 Phase 4b, `ai/test-investigator.ts`) - the "feed it tampered
   entries, count blocked claims" test: synthetic claims citing verified, tampered,
   nonexistent, and mixed seqs, asserting the checker keeps only the clean ones and blocks

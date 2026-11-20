@@ -150,6 +150,79 @@ export interface AiIncidentReport {
   generatedAt: number;
 }
 
+// AI Analyst features (ai/src/server.ts). Mirrors evidence/src/aiReport.ts. Two citation
+// kinds: citedEntries are verified (OK) log entries; citedFindings are entries the verifier
+// flagged, cited for the fact that they were tampered with.
+export interface Cited {
+  citedEntries: number[];
+  citedFindings: number[];
+}
+
+export interface MitreTechnique {
+  id: string;
+  name: string;
+  tactic: string;
+  url: string;
+}
+
+export interface TimelineStep extends Cited {
+  title: string;
+  description: string;
+  technique: MitreTechnique | null;
+  firstTs: number | null;
+  source: "model" | "verifier";
+}
+
+export interface AttackTimeline {
+  steps: TimelineStep[];
+  blockedSteps: TimelineStep[];
+  generatedAt: number;
+}
+
+export interface CitedValue extends Cited {
+  value: string;
+}
+
+export interface CitedSentence extends Cited {
+  text: string;
+}
+
+export interface CertInReport {
+  incidentType: string;
+  affectedHosts: CitedValue[];
+  affectedAccounts: CitedValue[];
+  indicators: CitedValue[];
+  description: CitedSentence[];
+  blocked: { field: string; text: string; citedEntries: number[]; citedFindings: number[] }[];
+  occurredAt: number | null;
+  detectedAt: number;
+  reportingDeadline: number;
+  tampering: { tamperedCount: number; silenceTriggered: boolean };
+  reportTo: string;
+  generatedAt: number;
+}
+
+export interface LogAnswer {
+  question: string;
+  answer: CitedSentence[];
+  blocked: CitedSentence[];
+  insufficientEvidence: boolean;
+  generatedAt: number;
+}
+
+export type AiErrorCode =
+  | "not_configured"
+  | "verifier_unreachable"
+  | "model_error"
+  | "refusal"
+  | "truncated"
+  | "rate_limited"
+  | "bad_request"
+  | "unreachable"
+  | "internal_error";
+
+export type AiResult<T> = { ok: true; data: T } | { ok: false; code: AiErrorCode; error: string };
+
 export interface AttackMetadata {
   id: number;
   name: string;

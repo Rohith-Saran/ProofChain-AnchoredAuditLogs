@@ -89,8 +89,12 @@ export function createVerifierApp() {
       // Real report if the AI investigator (M4) is configured and reachable; null — never
       // fabricated — otherwise. See evidence/src/aiReport.ts and exportPack.ts's own
       // "not configured" note in the generated markdown report.
-      const aiReport = await aiMod.fetchAiIncidentReport();
-      const pack = exportMod.exportEvidencePack({ victimDbPath, collectorDbPath, aiReport });
+      const [aiReport, attackTimeline, certInReport] = await Promise.all([
+        aiMod.fetchAiIncidentReport(),
+        aiMod.fetchAiAttackTimeline(),
+        aiMod.fetchAiCertInReport(),
+      ]);
+      const pack = exportMod.exportEvidencePack({ victimDbPath, collectorDbPath, aiReport, attackTimeline, certInReport });
       res.json(pack);
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });

@@ -152,6 +152,24 @@ export const AttackConsolePage: React.FC = () => {
 
             <button
               type="button"
+              onClick={() => navigate("/ai")}
+              title="Reconstruct this attack as a MITRE ATT&CK timeline"
+              style={{
+                padding: "8px 14px",
+                borderRadius: "6px",
+                border: "1px solid var(--chain)",
+                background: "transparent",
+                color: "var(--chain)",
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              AI attack timeline →
+            </button>
+
+            <button
+              type="button"
               onClick={() => navigate("/live")}
               style={{
                 padding: "8px 14px",

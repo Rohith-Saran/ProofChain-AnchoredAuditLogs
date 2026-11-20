@@ -1,72 +1,128 @@
 /**
- * Thin wrapper around the Anthropic API: one call, forced into a tool call so the model's
- * output is always structured JSON (claims + citedEntries), never free text we'd have to
- * parse and hope is valid. Everything downstream (investigator.ts's checkCitations) treats
- * the model's output as untrusted input regardless — this just guarantees it's shaped
- * right, not that it's honest.
+ * The one place the AI service talks to the Anthropic API. Every feature asks for JSON
+ * matching a schema (structured outputs), so nothing downstream ever parses free text.
+ * The model's output is still treated as untrusted: the schema guarantees its shape, not
+ * its honesty — each feature runs its own code-side checks afterwards.
+ *
+ * Forced tool_choice ({type:"tool"}) is not used: current models (Claude Opus 5.5 /
+ * Sonnet 5.5) reject it with a 400. output_config.format replaces it.
  */
 import Anthropic from "@anthropic-ai/sdk";
 import type { RawClaim } from "./investigator.ts";
 
-const TOOL_NAME = "submit_incident_claims";
-const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
+export const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
 
-const CLAIMS_TOOL = {
-  name: TOOL_NAME,
-  description: "Submit the incident report as a list of claims, each citing the log entry seq numbers it is based on.",
-  input_schema: {
-    type: "object" as const,
-    properties: {
-      claims: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            text: { type: "string", description: "One factual sentence about the incident." },
-            citedEntries: {
-              type: "array",
-              items: { type: "integer" },
-              description: "Log entry seq numbers this sentence is based on. Required, non-empty.",
-            },
-          },
-          required: ["text", "citedEntries"],
-        },
-      },
-    },
-    required: ["claims"],
-  },
-};
+export type Effort = "low" | "medium" | "high";
+
+export class AiNotConfiguredError extends Error {
+  readonly code = "not_configured";
+}
+export class AiRefusalError extends Error {
+  readonly code = "refusal";
+}
+export class AiTruncatedError extends Error {
+  readonly code = "truncated";
+}
+export class AiModelError extends Error {
+  readonly code = "model_error";
+}
 
 let client: Anthropic | null = null;
 
+export function isModelConfigured(): boolean {
+  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+}
+
 function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY not set — AI incident investigator is not configured");
+  if (!isModelConfigured()) {
+    throw new AiNotConfiguredError("ANTHROPIC_API_KEY not set — AI features are not configured");
   }
-  if (!client) client = new Anthropic({ apiKey });
+  if (!client) client = new Anthropic();
   return client;
 }
 
-export async function callInvestigatorModel(systemPrompt: string, userPrompt: string): Promise<RawClaim[]> {
+export interface StructuredCall {
+  system: string;
+  user: string;
+  /** JSON schema for the reply; must set additionalProperties:false and required. */
+  schema: Record<string, unknown>;
+  effort: Effort;
+  maxTokens?: number;
+}
+
+export async function callStructured<T>({ system, user, schema, effort, maxTokens = 16000 }: StructuredCall): Promise<T> {
   const anthropic = getClient();
 
-  const response = await anthropic.messages.create({
-    model: DEFAULT_MODEL,
-    max_tokens: 1536,
-    system: systemPrompt,
-    tools: [CLAIMS_TOOL],
-    tool_choice: { type: "tool", name: TOOL_NAME },
-    messages: [{ role: "user", content: userPrompt }],
-  });
-
-  const toolUse = response.content.find(
-    (block): block is Anthropic.ToolUseBlock => block.type === "tool_use" && block.name === TOOL_NAME
-  );
-  if (!toolUse) {
-    throw new Error("Model did not return a submit_incident_claims tool call");
+  let response: Anthropic.Beta.BetaMessage;
+  try {
+    response = await anthropic.beta.messages.create({
+      model: MODEL,
+      max_tokens: maxTokens,
+      // On a policy decline the API re-runs the request on a fallback model in the same call.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      system,
+      output_config: { format: { type: "json_schema", schema }, effort },
+      messages: [{ role: "user", content: user }],
+    });
+  } catch (err) {
+    if (err instanceof Anthropic.AuthenticationError) {
+      throw new AiNotConfiguredError(`Anthropic API rejected the credentials: ${err.message}`);
+    }
+    if (err instanceof Anthropic.APIError) {
+      throw new AiModelError(`Anthropic API error ${err.status ?? ""}: ${err.message}`.trim());
+    }
+    throw new AiModelError(`Anthropic API unreachable: ${(err as Error).message}`);
   }
 
-  const input = toolUse.input as { claims?: unknown };
-  return Array.isArray(input.claims) ? (input.claims as RawClaim[]) : [];
+  if (response.stop_reason === "refusal") {
+    throw new AiRefusalError("The model declined this request");
+  }
+  if (response.stop_reason === "max_tokens") {
+    throw new AiTruncatedError("The model's reply was cut off before it finished");
+  }
+
+  const text = response.content
+    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new AiModelError("The model's reply was not valid JSON");
+  }
+}
+
+const CLAIMS_SCHEMA = {
+  type: "object",
+  properties: {
+    claims: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "One factual sentence about the incident." },
+          citedEntries: {
+            type: "array",
+            items: { type: "integer" },
+            description: "Log entry seq numbers this sentence is based on. Required, non-empty.",
+          },
+        },
+        required: ["text", "citedEntries"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["claims"],
+  additionalProperties: false,
+};
+
+export async function callInvestigatorModel(systemPrompt: string, userPrompt: string): Promise<RawClaim[]> {
+  const out = await callStructured<{ claims?: unknown }>({
+    system: systemPrompt,
+    user: userPrompt,
+    schema: CLAIMS_SCHEMA,
+    effort: "high",
+  });
+  return Array.isArray(out.claims) ? (out.claims as RawClaim[]) : [];
 }

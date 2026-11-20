@@ -16,6 +16,48 @@
   }
 }
 
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes overlayIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 .hash-text-container:hover {
   background: rgba(0, 0, 0, 0.08) !important;
 }
@@ -24,4 +66,160 @@ button:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--chain);
   outline-offset: 2px;
+}
+
+/* Global interactive feedback - inline-styled components still pick this up
+   since it targets tags/shared classNames, not per-component overrides. */
+button,
+a {
+  transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+}
+
+button:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+button:not(:disabled):active {
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(0.96);
+}
+
+a:hover {
+  opacity: 0.8;
+}
+
+/* Verdict badges pop in rather than just appearing - draws the eye to the
+   thing that just got detected/anchored without being distracting on reread. */
+.verdict-badge {
+  animation: popIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Forensic diff modal - fade+scale the content, fade the scrim underneath. */
+.diff-modal-overlay {
+  animation: overlayIn 0.15s ease;
+}
+
+.diff-modal-content {
+  animation: modalIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Log rows: visible hover feedback since the whole row is clickable. */
+.log-table-container tbody tr {
+  transition: background-color 0.12s ease, border-left-color 0.12s ease;
+}
+
+.log-table-container tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.035);
+}
+
+body.dark-mode .log-table-container tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.045);
+}
+
+/* Page content eases in on every route change instead of popping.
+   (prefers-reduced-motion is already handled globally in tokens.css.) */
+main {
+  animation: fadeInUp 0.25s ease;
+}
+
+/* Card hover lift - every card-like surface already carries one of these
+   classNames, so this reaches the whole app without per-component edits. */
+.attack-card,
+.evidence-card,
+.anchor-block-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.attack-card:hover,
+.evidence-card:hover,
+.anchor-block-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 1px 0 var(--line), 0 18px 34px -16px rgba(60, 40, 20, 0.45);
+  border-color: var(--chain);
+}
+
+body.dark-mode .attack-card:hover,
+body.dark-mode .evidence-card:hover,
+body.dark-mode .anchor-block-card:hover {
+  box-shadow: 0 1px 0 var(--line), 0 18px 34px -16px rgba(0, 0, 0, 0.75);
+}
+
+/* Log rows stream in with a short stagger, capped so a 200-row table doesn't
+   queue up a multi-second cascade - only the first screenful staggers. */
+.log-table-container tbody tr {
+  animation: fadeInUp 0.2s ease both;
+}
+
+.log-table-container tbody tr:nth-child(n+16) {
+  animation: none;
+}
+
+.log-table-container tbody tr:nth-child(1) { animation-delay: 0ms; }
+.log-table-container tbody tr:nth-child(2) { animation-delay: 15ms; }
+.log-table-container tbody tr:nth-child(3) { animation-delay: 30ms; }
+.log-table-container tbody tr:nth-child(4) { animation-delay: 45ms; }
+.log-table-container tbody tr:nth-child(5) { animation-delay: 60ms; }
+.log-table-container tbody tr:nth-child(6) { animation-delay: 75ms; }
+.log-table-container tbody tr:nth-child(7) { animation-delay: 90ms; }
+.log-table-container tbody tr:nth-child(8) { animation-delay: 105ms; }
+.log-table-container tbody tr:nth-child(9) { animation-delay: 120ms; }
+.log-table-container tbody tr:nth-child(10) { animation-delay: 135ms; }
+
+/* Risk meter: a soft glow on the bar itself when risk is high, echoing the
+   silence-alert pulse without re-triggering the full "something is wrong"
+   banner treatment. */
+.risk-bar-fill.risk-high {
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+/* Spinning loading glyph for async actions (verify running, attack running). */
+.spin-icon {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Thin, theme-aware scrollbars instead of the chunky OS default. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--line);
+  border-radius: 8px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ink-muted);
+}
+
+/* AI Analyst: timeline steps and answers ease in as they arrive. */
+.timeline-step,
+.ask-answer {
+  animation: fadeInUp 0.25s ease both;
+}
+
+.timeline-step:nth-child(2) { animation-delay: 60ms; }
+.timeline-step:nth-child(3) { animation-delay: 120ms; }
+.timeline-step:nth-child(4) { animation-delay: 180ms; }
+.timeline-step:nth-child(5) { animation-delay: 240ms; }
+.timeline-step:nth-child(n+6) { animation-delay: 300ms; }
+
+@media (max-width: 900px) {
+  .ai-analyst-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }

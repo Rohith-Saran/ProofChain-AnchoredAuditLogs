@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { MerkleTree } from "./merkle.ts";
 import type { MerkleProofStep } from "./merkle.ts";
-import type { AiIncidentReport } from "./aiReport.ts";
+import type { AiIncidentReport, AttackTimeline, CertInReport, Cited, CitedValue } from "./aiReport.ts";
 
 export interface EvidenceEntry {
   seq: number;
@@ -60,6 +60,10 @@ export interface EvidencePack {
    *  was configured and reachable for this export. null — never a fabricated report —
    *  when it wasn't; see evidence/src/aiReport.ts. */
   aiIncidentReport: AiIncidentReport | null;
+  /** AI attack timeline mapped to MITRE ATT&CK, citation-checked; null if unavailable. */
+  attackTimeline: AttackTimeline | null;
+  /** AI-filled CERT-In incident report fields, citation-checked; null if unavailable. */
+  certInReport: CertInReport | null;
 }
 
 export function computeSha256(data: string): string {
@@ -86,6 +90,53 @@ function formatAiIncidentReportSection(report: AiIncidentReport | null): string 
   return `Generated ${new Date(report.generatedAt).toISOString()}. Every claim below cites log entry numbers the verifier confirmed as real and untampered.\n\n${claimLines}${blockedSection}`;
 }
 
+function citeText(c: Cited): string {
+  const parts = [];
+  if (c.citedEntries.length) parts.push(`entries ${c.citedEntries.join(", ")}`);
+  if (c.citedFindings.length) parts.push(`verifier findings ${c.citedFindings.join(", ")}`);
+  return parts.length ? ` _(cites ${parts.join("; ")})_` : " _(from the verifier's silence alert)_";
+}
+
+const AI_UNAVAILABLE =
+  "_Not included: the AI service is not configured for this export (set `AI_INVESTIGATOR_URL` on the verifier) or did not respond in time. This is not a gap in the cryptographic evidence above._";
+
+function formatAttackTimelineSection(timeline: AttackTimeline | null): string {
+  if (!timeline) return AI_UNAVAILABLE;
+  if (timeline.steps.length === 0) return "_No attack steps could be supported by the verified evidence._";
+  const steps = timeline.steps
+    .map((s, i) => {
+      const when = s.firstTs ? `${new Date(s.firstTs).toISOString()} — ` : "";
+      const technique = s.technique ? ` [${s.technique.id} ${s.technique.name}](${s.technique.url})` : "";
+      return `${i + 1}. ${when}**${s.title}**${technique}: ${s.description}${citeText(s)}`;
+    })
+    .join("\n");
+  const blocked = timeline.blockedSteps.length
+    ? `\n\n${timeline.blockedSteps.length} proposed step(s) were blocked by the citation checker and are not shown as fact.`
+    : "";
+  return `${steps}${blocked}`;
+}
+
+function formatCertInSection(report: CertInReport | null): string {
+  if (!report) return AI_UNAVAILABLE;
+  const list = (items: CitedValue[]) =>
+    items.length ? items.map((i) => `\`${i.value}\`${citeText(i)}`).join(", ") : "_none supported by evidence_";
+  const iso = (t: number | null) => (t ? new Date(t).toISOString() : "unknown");
+  return [
+    `- **Incident type**: ${report.incidentType}`,
+    `- **Occurred**: ${iso(report.occurredAt)} (earliest cited entry)`,
+    `- **Detected**: ${iso(report.detectedAt)}`,
+    `- **Report to CERT-In by**: ${iso(report.reportingDeadline)} (6 hours after detection) — ${report.reportTo}`,
+    `- **Affected hosts**: ${list(report.affectedHosts)}`,
+    `- **Affected accounts**: ${list(report.affectedAccounts)}`,
+    `- **Indicators**: ${list(report.indicators)}`,
+    `- **Tampering**: ${report.tampering.tamperedCount} entries flagged; silence alert ${report.tampering.silenceTriggered ? "ACTIVE" : "not active"}`,
+    "",
+    "**Description**",
+    report.description.length ? report.description.map((d) => `- ${d.text}${citeText(d)}`).join("\n") : "_No sentences were supported by the evidence._",
+    report.blocked.length ? `\n${report.blocked.length} proposed value(s) were blocked because their citations did not hold up.` : "",
+  ].join("\n");
+}
+
 export function exportEvidencePack(opts: {
   victimDbPath: string;
   collectorDbPath?: string;
@@ -99,6 +150,8 @@ export function exportEvidencePack(opts: {
    *  evidence/src/aiReport.ts before calling in). Omit/null if the AI investigator isn't
    *  configured or didn't respond — the pack will say so rather than go without the field. */
   aiReport?: AiIncidentReport | null;
+  attackTimeline?: AttackTimeline | null;
+  certInReport?: CertInReport | null;
 }): EvidencePack {
   const vDb = new DatabaseSync(opts.victimDbPath);
 
@@ -274,6 +327,8 @@ export function exportEvidencePack(opts: {
     batches,
     entries: processedEntries,
     aiIncidentReport: opts.aiReport ?? null,
+    attackTimeline: opts.attackTimeline ?? null,
+    certInReport: opts.certInReport ?? null,
   };
 
   // Close database connections
@@ -301,6 +356,12 @@ export function exportEvidencePack(opts: {
 |----------|----------------|-------------|-----------------|---------|
 ${pack.batches.map(b => `| ${b.batchId} | ${b.startSeq}..${b.endSeq} | \`${b.merkleRoot.slice(0, 16)}...\` | \`${b.lastChainHash.slice(0, 16)}...\` | \`${b.txHash?.slice(0, 16) || 'N/A'}...\` |`).join("\n")}
 
+## CERT-In Incident Report (AI-filled, citation-checked)
+${formatCertInSection(pack.certInReport)}
+
+## Attack Timeline (MITRE ATT&CK)
+${formatAttackTimelineSection(pack.attackTimeline)}
+
 ## AI Incident Report
 ${formatAiIncidentReportSection(pack.aiIncidentReport)}
 
@@ -320,11 +381,17 @@ node verify-standalone.js evidence-pack.json
 if (process.argv[1] && (process.argv[1].endsWith("exportPack.ts") || process.argv[1].endsWith("exportPack.js"))) {
   const victimDb = process.env.DB_PATH || path.resolve(process.cwd(), "../agent/victim.db");
   const collectorDb = process.env.COLLECTOR_DB_PATH || path.resolve(process.cwd(), "../collector/collector.db");
-  const { fetchAiIncidentReport } = await import("./aiReport.ts");
-  const aiReport = await fetchAiIncidentReport();
+  const ai = await import("./aiReport.ts");
+  const [aiReport, attackTimeline, certInReport] = await Promise.all([
+    ai.fetchAiIncidentReport(),
+    ai.fetchAiAttackTimeline(),
+    ai.fetchAiCertInReport(),
+  ]);
   exportEvidencePack({
     victimDbPath: victimDb,
     collectorDbPath: collectorDb,
     aiReport,
+    attackTimeline,
+    certInReport,
   });
 }

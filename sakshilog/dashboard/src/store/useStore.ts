@@ -1,8 +1,20 @@
 import { create } from "zustand";
-import type { LogEntry, Batch, VerificationResult, ConnectionStatus, SystemStatus, AttackMetadata, Verdict, RiskState, AiIncidentReport } from "../types";
-import { apiClient, isMockMode, setMockMode } from "../api/client";
+import type { LogEntry, Batch, VerificationResult, ConnectionStatus, SystemStatus, AttackMetadata, Verdict, RiskState, AiIncidentReport, AttackTimeline, CertInReport, LogAnswer } from "../types";
+import { apiClient, describeAiError, isMockMode, setMockMode } from "../api/client";
 import { realtime } from "../api/socket";
 import { MOCK_LOGS, MOCK_BATCHES, MOCK_VERIFICATION, MOCK_RISK, ATTACKS } from "../mock/data";
+
+// A stored choice wins; otherwise follow the OS. Storage and matchMedia can both be missing
+// or throw (private windows, blocked site data, test environments), so neither may crash the app.
+function initialDarkMode(): boolean {
+  try {
+    const stored = localStorage.getItem("sakshilog-dark-mode");
+    if (stored !== null) return stored === "1";
+  } catch {
+    // fall through to the OS preference
+  }
+  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
 
 interface AppState {
   logs: LogEntry[];
@@ -23,6 +35,16 @@ interface AppState {
   aiReport: AiIncidentReport | null;
   isLoadingAiReport: boolean;
   aiReportError: string | null;
+  attackTimeline: AttackTimeline | null;
+  isLoadingTimeline: boolean;
+  timelineError: string | null;
+  certInReport: CertInReport | null;
+  isLoadingCertIn: boolean;
+  certInError: string | null;
+  /** Newest first. */
+  logAnswers: LogAnswer[];
+  isAsking: boolean;
+  askError: string | null;
   lastAttackResult: {
     attackId: number;
     name: string;
@@ -54,6 +76,9 @@ interface AppState {
   resetDemo: () => Promise<void>;
   executeAttackLive: (attackId: number) => Promise<void>;
   fetchAiReport: () => Promise<void>;
+  fetchAttackTimeline: () => Promise<void>;
+  fetchCertInReport: () => Promise<void>;
+  askLogs: (question: string) => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -64,10 +89,7 @@ export const useStore = create<AppState>((set, get) => ({
   connectionStatus: isMockMode() ? "mock" : "connected",
   isAnchorSilent: false,
   isDemoMode: window.location.hash.includes("demo=1") || window.location.search.includes("demo=1"),
-  isDarkMode:
-    localStorage.getItem("sakshilog-dark-mode") === "1" ||
-    (localStorage.getItem("sakshilog-dark-mode") === null &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches),
+  isDarkMode: initialDarkMode(),
   selectedAttack: ATTACKS[5], // Attack 6 default (Hero screen)
   currentStepIndex: 0,
   selectedLogSeq: null,
@@ -79,6 +101,15 @@ export const useStore = create<AppState>((set, get) => ({
   aiReport: null,
   isLoadingAiReport: false,
   aiReportError: null,
+  attackTimeline: null,
+  isLoadingTimeline: false,
+  timelineError: null,
+  certInReport: null,
+  isLoadingCertIn: false,
+  certInError: null,
+  logAnswers: [],
+  isAsking: false,
+  askError: null,
 
   init: () => {
     // Apply the persisted/system-preferred theme class now - the initial state above
@@ -149,7 +180,11 @@ export const useStore = create<AppState>((set, get) => ({
   setDarkMode: (enabled: boolean) => {
     set({ isDarkMode: enabled });
     document.body.classList.toggle("dark-mode", enabled);
-    localStorage.setItem("sakshilog-dark-mode", enabled ? "1" : "0");
+    try {
+      localStorage.setItem("sakshilog-dark-mode", enabled ? "1" : "0");
+    } catch {
+      // Storage blocked (private window, disabled site data): the choice just won't persist.
+    }
   },
 
   toggleDarkMode: () => {
@@ -742,21 +777,41 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchAiReport: async () => {
     set({ isLoadingAiReport: true, aiReportError: null });
-    try {
-      const report = await apiClient.getIncidentReport();
-      if (report) {
-        set({ aiReport: report, isLoadingAiReport: false });
-      } else {
-        set({
-          aiReport: null,
-          isLoadingAiReport: false,
-          aiReportError: isMockMode()
-            ? null
-            : "AI investigator not configured or unreachable (set ANTHROPIC_API_KEY and start ai/).",
-        });
-      }
-    } catch (err) {
-      set({ aiReport: null, isLoadingAiReport: false, aiReportError: (err as Error).message });
+    const result = await apiClient.getIncidentReport();
+    set(
+      result.ok
+        ? { aiReport: result.data, isLoadingAiReport: false }
+        : { aiReport: null, isLoadingAiReport: false, aiReportError: describeAiError(result) }
+    );
+  },
+
+  fetchAttackTimeline: async () => {
+    set({ isLoadingTimeline: true, timelineError: null });
+    const result = await apiClient.getAttackTimeline();
+    set(
+      result.ok
+        ? { attackTimeline: result.data, isLoadingTimeline: false }
+        : { attackTimeline: null, isLoadingTimeline: false, timelineError: describeAiError(result) }
+    );
+  },
+
+  fetchCertInReport: async () => {
+    set({ isLoadingCertIn: true, certInError: null });
+    const result = await apiClient.getCertInReport();
+    set(
+      result.ok
+        ? { certInReport: result.data, isLoadingCertIn: false }
+        : { certInReport: null, isLoadingCertIn: false, certInError: describeAiError(result) }
+    );
+  },
+
+  askLogs: async (question: string) => {
+    set({ isAsking: true, askError: null });
+    const result = await apiClient.askLogs(question);
+    if (result.ok) {
+      set((state) => ({ logAnswers: [result.data, ...state.logAnswers].slice(0, 20), isAsking: false }));
+    } else {
+      set({ isAsking: false, askError: describeAiError(result) });
     }
   },
 }));

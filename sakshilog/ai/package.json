@@ -7,7 +7,7 @@
   "main": "src/server.ts",
   "scripts": {
     "start": "node --experimental-strip-types src/server.ts",
-    "test": "node --experimental-strip-types test-investigator.ts",
+    "test": "node --experimental-strip-types test-investigator.ts && node --experimental-strip-types test-features.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

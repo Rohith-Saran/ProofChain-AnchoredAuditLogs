@@ -1,4 +1,4 @@
-import type { LogEntry, Batch, VerificationResult, AttackMetadata, StepDefinition, RiskState, AiIncidentReport } from "../types";
+import type { LogEntry, Batch, VerificationResult, AttackMetadata, StepDefinition, RiskState, AiIncidentReport, AttackTimeline, CertInReport, LogAnswer } from "../types";
 
 export const MOCK_RISK: RiskState = {
   score: 0,
@@ -17,6 +17,73 @@ export const MOCK_AI_REPORT: AiIncidentReport = {
   ],
   generatedAt: Date.now(),
 };
+
+// Offline demo data for the AI Analyst page, shown with a visible MOCK badge. Cites the
+// mock log seqs below (101-106), so citation chips still open the right entries.
+export const MOCK_TIMELINE: AttackTimeline = {
+  steps: [
+    {
+      title: "SSH login from external IP",
+      description: "An SSH session was accepted for ubuntu from 192.168.1.42.",
+      technique: { id: "T1021.004", name: "Remote Services: SSH", tactic: "Lateral Movement", url: "https://attack.mitre.org/techniques/T1021/004/" },
+      citedEntries: [102],
+      citedFindings: [],
+      firstTs: 1732098001000,
+      source: "model",
+    },
+    {
+      title: "Root shell via sudo",
+      description: "ubuntu ran /bin/bash as root through sudo.",
+      technique: { id: "T1548.003", name: "Abuse Elevation Control Mechanism: Sudo and Sudo Caching", tactic: "Privilege Escalation", url: "https://attack.mitre.org/techniques/T1548/003/" },
+      citedEntries: [103],
+      citedFindings: [],
+      firstTs: 1732098002000,
+      source: "model",
+    },
+  ],
+  blockedSteps: [
+    {
+      title: "Data exfiltrated",
+      description: "The attacker copied the customer database off the host.",
+      technique: null,
+      citedEntries: [999],
+      citedFindings: [],
+      firstTs: null,
+      source: "model",
+    },
+  ],
+  generatedAt: Date.now(),
+};
+
+export const MOCK_CERT_IN: CertInReport = {
+  incidentType: "Unauthorised access of IT systems/data",
+  affectedHosts: [{ value: "victim-server", citedEntries: [102], citedFindings: [] }],
+  affectedAccounts: [{ value: "ubuntu", citedEntries: [102, 103], citedFindings: [] }],
+  indicators: [{ value: "192.168.1.42", citedEntries: [102, 106], citedFindings: [] }],
+  description: [
+    { text: "An SSH session was accepted for ubuntu from 192.168.1.42.", citedEntries: [102], citedFindings: [] },
+    { text: "ubuntu opened a root shell with sudo one second later.", citedEntries: [103], citedFindings: [] },
+  ],
+  blocked: [{ field: "indicators", text: "10.66.6.6", citedEntries: [102], citedFindings: [] }],
+  occurredAt: 1732098001000,
+  detectedAt: Date.now(),
+  reportingDeadline: Date.now() + 6 * 60 * 60 * 1000,
+  tampering: { tamperedCount: 0, silenceTriggered: false },
+  reportTo: "incident@cert-in.org.in",
+  generatedAt: Date.now(),
+};
+
+export function mockLogAnswer(question: string): LogAnswer {
+  return {
+    question,
+    answer: [
+      { text: "ubuntu logged in over SSH from 192.168.1.42 and then opened a root shell with sudo.", citedEntries: [102, 103], citedFindings: [] },
+    ],
+    blocked: [],
+    insufficientEvidence: false,
+    generatedAt: Date.now(),
+  };
+}
 
 export const MOCK_LOGS: LogEntry[] = [
   { seq: 101, ts: 1732098000000, host: "victim-server", source: "systemd", level: "info", message: "System slice started session-c1.scope", prevHash: "0x0000000000000000000000000000000000000000000000000000000000000000", hash: "0x3fa94bb10c128ef3194ca810fa2bc91bca72901a1c4b901e4029df49c21e001" },

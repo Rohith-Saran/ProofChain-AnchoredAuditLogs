@@ -7,8 +7,8 @@
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist",
-    "rootDir": "./src"
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "test-*.ts"]
 }

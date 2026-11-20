@@ -10,6 +10,7 @@ import type { AiIncidentClaim, AiIncidentReport } from "../../evidence/src/aiRep
 export interface VerifiedEntryContext {
   seq: number;
   ts: number;
+  host?: string;
   source: string;
   level: string;
   message: string;
@@ -18,7 +19,10 @@ export interface VerifiedEntryContext {
 export interface FlaggedEntryContext {
   seq: number;
   verdict: string;
+  /** The verifier's own diagnosis — never attacker-written log text. */
   detail: string;
+  /** Timestamp of the off-host collector copy (or the local row if there is none). */
+  ts?: number;
 }
 
 export interface InvestigatorInput {
@@ -53,7 +57,7 @@ CERT-In-style incident report claims from a security log audit. Rules, no except
 
 export function buildPrompt(input: InvestigatorInput): string {
   const verifiedLines = input.verifiedEntries
-    .map((e) => `  [seq ${e.seq}] ${new Date(e.ts).toISOString()} ${e.source}/${e.level}: ${e.message}`)
+    .map((e) => `  [seq ${e.seq}] ${new Date(e.ts).toISOString()} ${e.host ? `${e.host} ` : ""}${e.source}/${e.level}: ${e.message}`)
     .join("\n");
 
   const flaggedLines = input.flaggedEntries.length > 0
@@ -77,7 +81,7 @@ Silence status: ${silenceLine}
 
 Summary: ${input.summary.total} entries audited, ${input.summary.tamperedCount} flagged as tampered, overall ok=${input.summary.ok}.
 
-Write the incident report claims now, as the submit_incident_claims tool call.`;
+Write the incident report claims now.`;
 }
 
 /**

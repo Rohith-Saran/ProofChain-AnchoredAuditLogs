@@ -1,5 +1,27 @@
-import type { LogEntry, Batch, VerificationResult, BaselineVerificationResult, SystemStatus, RiskState, AiIncidentReport } from "../types";
-import { MOCK_LOGS, MOCK_BATCHES, MOCK_VERIFICATION, MOCK_RISK } from "../mock/data";
+import type {
+  LogEntry,
+  Batch,
+  VerificationResult,
+  BaselineVerificationResult,
+  SystemStatus,
+  RiskState,
+  AiIncidentReport,
+  AiResult,
+  AiErrorCode,
+  AttackTimeline,
+  CertInReport,
+  LogAnswer,
+} from "../types";
+import {
+  MOCK_LOGS,
+  MOCK_BATCHES,
+  MOCK_VERIFICATION,
+  MOCK_RISK,
+  MOCK_AI_REPORT,
+  MOCK_TIMELINE,
+  MOCK_CERT_IN,
+  mockLogAnswer,
+} from "../mock/data";
 import { normalizeVerification, normalizeBaseline } from "./normalize";
 import type { RawVerificationResult, RawBaselineResult } from "./normalize";
 
@@ -36,6 +58,42 @@ async function safeFetch<T>(url: string, options?: RequestInit, fallback?: T): P
     throw err;
   }
 }
+
+const AI_ERROR_MESSAGES: Record<AiErrorCode, string> = {
+  not_configured: "AI is not configured. Set ANTHROPIC_API_KEY and start the AI service (npm run start:ai).",
+  verifier_unreachable: "The AI service couldn't reach the verifier, so there is no evidence to analyse.",
+  model_error: "The AI model call failed.",
+  refusal: "The model declined this request.",
+  truncated: "The model's answer was cut off before it finished.",
+  rate_limited: "Too many questions. Wait a minute and try again.",
+  bad_request: "That request was rejected.",
+  unreachable: "The AI service isn't running at " + AI_URL + ". Start it with npm run start:ai.",
+  internal_error: "The AI service hit an internal error.",
+};
+
+export function describeAiError(result: { code: AiErrorCode; error: string }): string {
+  const base = AI_ERROR_MESSAGES[result.code] ?? result.error;
+  return result.code === "model_error" || result.code === "bad_request" ? `${base} ${result.error}` : base;
+}
+
+/** Calls the AI service and keeps its error code, so the UI can say exactly what went wrong
+ *  instead of collapsing every failure into "unavailable". Never fabricates a result. */
+async function fetchAi<T>(path: string, init: RequestInit | undefined, timeoutMs: number): Promise<AiResult<T>> {
+  try {
+    const res = await fetch(`${AI_URL}${path}`, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+    const body = await res.json().catch(() => null);
+    if (res.ok) return { ok: true, data: body as T };
+    const code = (body?.code as AiErrorCode) || "internal_error";
+    return { ok: false, code, error: body?.error || `HTTP ${res.status}` };
+  } catch (err) {
+    console.warn(`AI request failed for ${AI_URL}${path}:`, err);
+    return { ok: false, code: "unreachable", error: (err as Error).message };
+  }
+}
+
+// The model runs at high effort for these, so allow it time to think.
+const AI_REPORT_TIMEOUT_MS = 120_000;
+const AI_ASK_TIMEOUT_MS = 60_000;
 
 export const apiClient = {
   async getSystemStatus(): Promise<SystemStatus> {
@@ -126,7 +184,7 @@ export const apiClient = {
   async getEvidencePack(): Promise<Record<string, unknown> | null> {
     if (forceMock) return null;
     try {
-      const res = await fetch(`${VERIFIER_URL}/api/evidence/export`, { signal: AbortSignal.timeout(8000) });
+      const res = await fetch(`${VERIFIER_URL}/api/evidence/export`, { signal: AbortSignal.timeout(30000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       return (await res.json()) as Record<string, unknown>;
     } catch (err) {
@@ -141,19 +199,29 @@ export const apiClient = {
     return safeFetch<RiskState>(`${AGENT_URL}/api/risk`, undefined, MOCK_RISK);
   },
 
-  // AI incident investigator (M4 Phase 4a): ai/src/server.ts's GET /api/incident-report.
-  // Returns null (never fabricated data) if the service isn't configured or unreachable,
-  // same contract as getEvidencePack().
-  async getIncidentReport(): Promise<AiIncidentReport | null> {
-    if (forceMock) return null;
-    try {
-      const res = await fetch(`${AI_URL}/api/incident-report`, { signal: AbortSignal.timeout(15000) });
-      if (!res.ok) return null;
-      return (await res.json()) as AiIncidentReport;
-    } catch (err) {
-      console.warn(`Fetch failed for ${AI_URL}/api/incident-report:`, err);
-      return null;
-    }
+  // AI service (ai/src/server.ts). In mock mode these return the labelled mock data.
+  async getIncidentReport(): Promise<AiResult<AiIncidentReport>> {
+    if (forceMock) return { ok: true, data: MOCK_AI_REPORT };
+    return fetchAi<AiIncidentReport>("/api/incident-report", undefined, AI_REPORT_TIMEOUT_MS);
+  },
+
+  async getAttackTimeline(): Promise<AiResult<AttackTimeline>> {
+    if (forceMock) return { ok: true, data: MOCK_TIMELINE };
+    return fetchAi<AttackTimeline>("/api/attack-timeline", undefined, AI_REPORT_TIMEOUT_MS);
+  },
+
+  async getCertInReport(): Promise<AiResult<CertInReport>> {
+    if (forceMock) return { ok: true, data: MOCK_CERT_IN };
+    return fetchAi<CertInReport>("/api/cert-in-report", undefined, AI_REPORT_TIMEOUT_MS);
+  },
+
+  async askLogs(question: string): Promise<AiResult<LogAnswer>> {
+    if (forceMock) return { ok: true, data: mockLogAnswer(question) };
+    return fetchAi<LogAnswer>(
+      "/api/ask",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) },
+      AI_ASK_TIMEOUT_MS
+    );
   },
 
   async triggerAnchor(): Promise<{ success: boolean; batchId?: number }> {

@@ -233,6 +233,15 @@
     `AttackConsolePage.tsx`/`useStore.ts`'s mock attack blocks aside); production build
     (`vite build`) succeeds.
 
+- AI Analyst (`#/ai`): attack timeline mapped to MITRE ATT&CK, CERT-In report auto-fill
+  with a live 6-hour deadline, and Ask-the-Logs. The model proposes, code verifies:
+  citations (verified entries vs verifier findings), MITRE IDs, verbatim values and every
+  timestamp are checked or computed in code. Also fixed: the investigator's forced
+  `tool_choice` (rejected by current models, so it failed with any real key), unbounded
+  prompts, no caching (exports nearly always got `null`), and every AI failure collapsing
+  to one vague message. Mock mode now shows labelled MOCK data instead of an empty panel.
+  Not yet run against a live model (no API key on the dev machine) — see INTERFACES.md.
+
 ## Blockers
 - None.
 

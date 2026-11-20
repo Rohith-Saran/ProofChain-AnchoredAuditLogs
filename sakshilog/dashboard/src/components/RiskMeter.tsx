@@ -62,6 +62,7 @@ export const RiskMeter: React.FC = () => {
         }}
       >
         <div
+          className={`risk-bar-fill ${risk.score >= 0.66 ? "risk-high" : ""}`}
           style={{
             width: `${pct}%`,
             height: "100%",

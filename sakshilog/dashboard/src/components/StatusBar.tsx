@@ -22,6 +22,7 @@ export const StatusBar: React.FC = () => {
     { to: "/attacks", label: "Attacks" },
     { to: "/attacks/6", label: "Hero (Attack 6)" },
     { to: "/evidence", label: "Evidence" },
+    { to: "/ai", label: "AI Analyst" },
     { to: "/results", label: "Results" },
     { to: "/limits", label: "Limits" },
   ];

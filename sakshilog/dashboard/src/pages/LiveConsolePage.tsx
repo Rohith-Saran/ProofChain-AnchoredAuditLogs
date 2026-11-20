@@ -108,7 +108,7 @@ export const LiveConsolePage: React.FC = () => {
               gap: "6px",
             }}
           >
-            {isVerifying ? <PulseIcon size={14} /> : <CheckIcon size={14} />}
+            {isVerifying ? <PulseIcon size={14} className="spin-icon" /> : <CheckIcon size={14} />}
             <span>{isVerifying ? "Verifying…" : "Run Verifier"}</span>
           </button>
         </div>

@@ -103,7 +103,7 @@ export const AttackButton: React.FC<AttackButtonProps> = ({
         >
           {isRunning ? (
             <>
-              <PulseIcon size={14} />
+              <PulseIcon size={14} className="spin-icon" />
               <span>Running…</span>
             </>
           ) : confirming ? (
