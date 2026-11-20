@@ -24,6 +24,8 @@ import { AnchorClient, AnchorError } from "./anchorClient.ts";
 import type { AnchorInput, AnchorResult, Batch } from "./anchorClient.ts";
 
 const PORT = Number(process.env.PORT || process.env.ANCHOR_SERVICE_PORT || 4003);
+const ANCHOR_INTERVAL_MS = Number(process.env.ANCHOR_INTERVAL_MS || 5000);
+const SILENCE_THRESHOLD_MS = 2 * ANCHOR_INTERVAL_MS;
 const MAX_RETRIES = 3;
 const RETRY_BACKOFF_MS = [500, 1000, 2000];
 
@@ -58,8 +60,37 @@ export function createAnchorServiceApp() {
     console.log(`[AnchorService] dashboard connected: ${socket.id}`);
   });
 
+  // Silence detection & performance metrics (M1 Phase 3)
+  let lastAnchorTs = Date.now();
+  let lastBatchId = -1;
+  let totalAnchors = 0;
+  let cumulativeGas = 0n;
+  let cumulativeLatencyMs = 0;
+  let silenceAlertActive = false;
+
+  const silenceCheckTimer = setInterval(() => {
+    const idleMs = Date.now() - lastAnchorTs;
+    const isSilent = totalAnchors > 0 && idleMs >= SILENCE_THRESHOLD_MS;
+    if (isSilent && !silenceAlertActive) {
+      silenceAlertActive = true;
+      const payload = {
+        triggered: true,
+        idleSeconds: Math.floor(idleMs / 1000),
+        thresholdSeconds: SILENCE_THRESHOLD_MS / 1000,
+        lastBatchId,
+      };
+      console.warn(`[AnchorService] ALERT: ANCHOR_SILENCE detected! No anchor in ${Math.floor(idleMs / 1000)}s (threshold: ${SILENCE_THRESHOLD_MS / 1000}s)`);
+      io.emit("silence", payload);
+    } else if (!isSilent && silenceAlertActive) {
+      silenceAlertActive = false;
+      io.emit("silence", { triggered: false, idleSeconds: Math.floor(idleMs / 1000) });
+    }
+  }, 1000);
+
   // Broadcast every on-chain anchor to every connected dashboard, no matter who wrote it.
   const unsubscribeWatch = watchClient.onAnchored((batch: Batch) => {
+    lastAnchorTs = Date.now();
+    lastBatchId = batch.batchId;
     io.emit("anchored", batch);
   });
 
@@ -73,7 +104,13 @@ export function createAnchorServiceApp() {
 
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         try {
-          return await writeClient.anchor(attemptInput);
+          const res = await writeClient.anchor(attemptInput);
+          totalAnchors++;
+          cumulativeGas += res.gasUsed;
+          cumulativeLatencyMs += res.latencyMs;
+          lastAnchorTs = Date.now();
+          lastBatchId = res.batchId;
+          return res;
         } catch (err) {
           lastErr = err;
           if (err instanceof AnchorError && err.reason === "BadBatchId") {
@@ -134,7 +171,31 @@ export function createAnchorServiceApp() {
     }
   });
 
+  // M1 Phase 3: Active silence detection status endpoint
+  app.get("/api/silence", (req, res) => {
+    const idleMs = Date.now() - lastAnchorTs;
+    res.json({
+      triggered: totalAnchors > 0 && idleMs >= SILENCE_THRESHOLD_MS,
+      idleSeconds: Math.floor(idleMs / 1000),
+      thresholdSeconds: SILENCE_THRESHOLD_MS / 1000,
+      lastBatchId,
+      alertActive: silenceAlertActive,
+    });
+  });
+
+  // M1 Phase 3: Gas & throughput performance metrics
+  app.get("/api/metrics", (req, res) => {
+    res.json({
+      totalAnchors,
+      avgGasUsed: totalAnchors > 0 ? (cumulativeGas / BigInt(totalAnchors)).toString() : "0",
+      avgLatencyMs: totalAnchors > 0 ? Math.round(cumulativeLatencyMs / totalAnchors) : 0,
+      silenceThresholdSeconds: SILENCE_THRESHOLD_MS / 1000,
+      lastAnchorTs,
+    });
+  });
+
   async function close(): Promise<void> {
+    clearInterval(silenceCheckTimer);
     unsubscribeWatch();
     await writeClient.close();
     await watchClient.close();

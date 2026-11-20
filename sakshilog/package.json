@@ -1,0 +1,27 @@
+{
+  "name": "sakshilog-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SakshiLog - Logs the attacker cannot erase (The Big Hack 2.0)",
+  "workspaces": [
+    "contracts",
+    "anchor-service",
+    "agent",
+    "collector",
+    "verifier",
+    "attacks",
+    "bench",
+    "evidence",
+    "dashboard"
+  ],
+  "scripts": {
+    "node": "npm run node --workspace=@sakshilog/contracts",
+    "compile": "npm run compile --workspace=@sakshilog/contracts",
+    "deploy:local": "npm run deploy:local --workspace=@sakshilog/contracts",
+    "test:contracts": "npm run test --workspace=@sakshilog/contracts",
+    "test:agent": "npm run test --workspace=@sakshilog/agent",
+    "seed": "npm run seed --workspace=@sakshilog/agent",
+    "smoke": "npm run smoke --workspace=@sakshilog/anchor-service",
+    "bench": "npm run bench --workspace=@sakshilog/bench"
+  }
+}
