@@ -1,9 +1,5 @@
 import { create } from "zustand";
-<<<<<<< HEAD
-import type { LogEntry, Batch, VerificationResult, ConnectionStatus, SystemStatus, AttackMetadata, Verdict } from "../types";
-=======
-import type { LogEntry, Batch, VerificationResult, ConnectionStatus, SystemStatus, AttackMetadata, RiskState, AiIncidentReport } from "../types";
->>>>>>> e6228c6815ae0bf8c6b564f8d89da00609518a86
+import type { LogEntry, Batch, VerificationResult, ConnectionStatus, SystemStatus, AttackMetadata, Verdict, RiskState, AiIncidentReport } from "../types";
 import { apiClient, isMockMode, setMockMode } from "../api/client";
 import { realtime } from "../api/socket";
 import { MOCK_LOGS, MOCK_BATCHES, MOCK_VERIFICATION, MOCK_RISK, ATTACKS } from "../mock/data";
