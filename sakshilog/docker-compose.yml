@@ -1,0 +1,123 @@
+version: "3.8"
+
+services:
+  # 1. Local Hardhat Blockchain Node (:8545)
+  chain:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh -c "cd contracts && npx hardhat node --hostname 0.0.0.0"
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8545"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+
+  # Contract Deployer: waits for chain to boot, deploys AnchorRegistry, then exits
+  deployer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      chain:
+        condition: service_healthy
+    command: sh -c "cd contracts && npx hardhat run scripts/deploy.ts --network localhost"
+    volumes:
+      - deployments-data:/app/contracts/deployments
+
+  # 2. Off-Host Collector (:4002) - Isolated off-host log witness
+  collector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh -c "cd collector && node --experimental-strip-types src/server.ts"
+    ports:
+      - "4002:4002"
+    environment:
+      - PORT=4002
+      - COLLECTOR_DB_PATH=/data/collector.db
+    volumes:
+      - collector-data:/data
+
+  # 3. Anchor Service (:4003) - Chain-facing anchor queue & retry engine
+  anchor-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      deployer:
+        condition: service_completed_successfully
+    command: sh -c "cd anchor-service && node --experimental-strip-types src/server.ts"
+    ports:
+      - "4003:4003"
+    environment:
+      - PORT=4003
+      - HARDHAT_RPC_URL=http://chain:8545
+    volumes:
+      - deployments-data:/app/contracts/deployments:ro
+
+  # 4. Victim Server Agent (:4001) - Hash chain generator, adaptive anchorer
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - collector
+      - anchor-service
+    command: sh -c "cd agent && node --experimental-strip-types src/server.ts"
+    ports:
+      - "4001:4001"
+    environment:
+      - PORT=4001
+      - DB_PATH=/data/victim.db
+      - COLLECTOR_URL=http://collector:4002
+      - ANCHOR_SERVICE_URL=http://anchor-service:4003
+      - ANCHOR_INTERVAL_MS=5000
+    volumes:
+      - victim-data:/data
+      - deployments-data:/app/contracts/deployments:ro
+
+  # 5. Verifier & Evidence Generator (:4004) - Cross-checks SQLite vs Chain vs Collector
+  verifier:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - agent
+      - collector
+      - anchor-service
+    command: sh -c "cd verifier && node --experimental-strip-types src/server.ts"
+    ports:
+      - "4004:4004"
+    environment:
+      - PORT=4004
+      - VICTIM_DB_PATH=/data-victim/victim.db
+      - COLLECTOR_DB_PATH=/data-collector/collector.db
+      - HARDHAT_RPC_URL=http://chain:8545
+    volumes:
+      - victim-data:/data-victim:ro
+      - collector-data:/data-collector:ro
+      - deployments-data:/app/contracts/deployments:ro
+
+  # 6. React + Vite Interactive Dashboard (:5173)
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - agent
+      - verifier
+    command: sh -c "cd dashboard && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_AGENT_URL=http://localhost:4001
+      - VITE_COLLECTOR_URL=http://localhost:4002
+      - VITE_VERIFIER_URL=http://localhost:4004
+
+volumes:
+  deployments-data:
+  victim-data:
+  collector-data:
