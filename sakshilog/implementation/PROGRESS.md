@@ -80,5 +80,15 @@
   previously just returned null when idle instead of posting the empty-range heartbeat the
   contract already supports) — without it, silence detection can't tell "idle" from "dead".
 
+## M4 log
+- Dashboard (`dashboard/`): Full implementation of SakshiLog live ops and guided explainer console.
+  - Visual design tokens (`tokens.css`): Warm editorial cream paper theme (`--bg: #f4ebe0`, isometric SVG diagrams).
+  - Routes (HashRouter): Landing (`#/`), Live Console (`#/live`), Attacks Matrix (`#/attacks`), Guided Step-Through (`#/attacks/:n` with `#/attacks/6` as hero), Evidence Pack (`#/evidence`), Empirical Results (`#/results` with SVG bar charts), and Honest Limits (`#/limits`).
+  - Hero Screen (`#/attacks/6`): Interactive dual-lane comparison (Plain Hash Chain vs SakshiLog Architecture) demonstrating how root attackers recomputing SQLite hashes fool plain hash chains but fail against immutable on-chain Merkle roots.
+  - Components: `StatusBar`, `Stepper`, `LaneDiagram` (SVG), `LogBlock`, `AnchorBlock`, `VerdictBadge`, `LogTable`, `AnchorTimeline`, `AttackButton`, `DiffView`, `BenchTable`, `BarChart`, `EvidenceCard`, `HashText`.
+  - Presentation & Demo Mode: `#/?demo=1` with 18px+ typography, presenter hotkeys (1-8 attack jump, N/P stepper, R reset, V verifier, M mock toggle).
+  - Automated tests passing for `Stepper` and `VerdictBadge` (`npm run test`). Full clean production build (`npm run build`).
+
 ## Blockers
--
+- None.
+

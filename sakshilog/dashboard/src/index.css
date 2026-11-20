@@ -1,0 +1,27 @@
+@import "./styles/tokens.css";
+
+/* App-wide subtle animations and reset */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.hash-text-container:hover {
+  background: rgba(0, 0, 0, 0.08) !important;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--chain);
+  outline-offset: 2px;
+}
