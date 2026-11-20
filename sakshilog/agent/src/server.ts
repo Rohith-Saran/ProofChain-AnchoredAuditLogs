@@ -44,9 +44,15 @@ export function createAgentApp(dbFilePath = DB_PATH) {
   });
   chain.onEntries = (entries) => {
     for (const entry of entries) io.emit("log", entry);
+    // Adaptive anchoring (Phase 4a, M1): every new entry also feeds the risk scorer,
+    // which can shrink the next anchor wait well before the timer would've fired anyway.
+    connector.observeEntries(entries);
   };
   connector.onBatch = (batch) => {
     io.emit("batch", batch);
+  };
+  connector.onRisk = (state) => {
+    io.emit("risk", state);
   };
 
   // Health endpoint
@@ -59,6 +65,7 @@ export function createAgentApp(dbFilePath = DB_PATH) {
       totalLogs: stats.totalLogs,
       lastSeq: stats.lastSeq,
       baselineMode: connector.isBaseline(),
+      anchorIntervalMs: connector.getCurrentIntervalMs(),
     });
   });
 
@@ -80,7 +87,13 @@ export function createAgentApp(dbFilePath = DB_PATH) {
       ...dbStats,
       loadGenerator: loadStats,
       baselineMode: connector.isBaseline(),
+      risk: connector.getRiskState(),
     });
+  });
+
+  // Adaptive anchoring: current risk score, the anchor interval it's driving, and why.
+  app.get("/api/risk", (req, res) => {
+    res.json(connector.getRiskState());
   });
 
   // Write custom log entry

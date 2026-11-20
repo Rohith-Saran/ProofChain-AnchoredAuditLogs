@@ -81,8 +81,16 @@ export function createVerifierApp() {
   app.get("/api/evidence/export", async (req, res) => {
     try {
       const exportPackPath = path.resolve(import.meta.dirname, "../../evidence/src/exportPack.ts");
-      const mod = await import(pathToFileURL(exportPackPath).href);
-      const pack = mod.exportEvidencePack({ victimDbPath, collectorDbPath });
+      const aiReportPath = path.resolve(import.meta.dirname, "../../evidence/src/aiReport.ts");
+      const [exportMod, aiMod] = await Promise.all([
+        import(pathToFileURL(exportPackPath).href),
+        import(pathToFileURL(aiReportPath).href),
+      ]);
+      // Real report if the AI investigator (M4) is configured and reachable; null — never
+      // fabricated — otherwise. See evidence/src/aiReport.ts and exportPack.ts's own
+      // "not configured" note in the generated markdown report.
+      const aiReport = await aiMod.fetchAiIncidentReport();
+      const pack = exportMod.exportEvidencePack({ victimDbPath, collectorDbPath, aiReport });
       res.json(pack);
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });

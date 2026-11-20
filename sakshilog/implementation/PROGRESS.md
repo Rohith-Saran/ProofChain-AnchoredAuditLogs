@@ -34,6 +34,26 @@
 - Next (Phase 3): silence-threshold alerting wired into a live alert channel (verifier already
   computes it), gas/latency/throughput numbers from the live pipeline (bench/ has the synthetic
   numbers; this is the measured-on-real-chain version).
+- Phase 4a: Adaptive anchoring (`agent/src/riskScorer.ts` + `anchorServiceConnector.ts`). A
+  rule-based `RiskScorer` (10s sliding window, no ML/network call) scores every entry
+  (`HashChain.onEntries` -> `connector.observeEntries()`); a brute-force login burst, a new
+  sudo-group member, or odd-hour activity raises the score and shrinks the anchor interval
+  from 5000ms down to 1000ms. `AnchorConnector`'s old fixed `setInterval` is now a
+  self-rescheduling loop that reads the current risk-driven interval each time it fires, and
+  cuts a long wait short mid-flight if risk spikes (tested live: 5 injected "Failed password"
+  lines took the score to 1.0 and the interval to the 1000ms floor within the same tick; it
+  decayed back to 5000ms 10s after the burst aged out of the window, matching the plan's "5s
+  normal, 1s under risk"). New `GET /api/risk` + Socket.IO `"risk"` event (agent, port 4001).
+  `ADAPTIVE_ANCHORING=false` / `ANCHOR_MIN_INTERVAL_MS` to disable/tune.
+- Phase 4b: Exposure-window + gas-cost comparison (`bench/src/exposureWindow.ts`, `npm run
+  bench:exposure` in `bench/`). Simulates quiet traffic -> a 6-attempt login burst -> a new
+  sudo-group member -> the attacker deleting every unanchored line, running the real
+  `RiskScorer` (not a reimplementation) against a virtual clock so both the fixed and
+  adaptive schedules are deterministic and instant. Measured result on that scenario: fixed
+  5s left a 3500ms / 6-line exposure window at the moment of attack; adaptive anchoring
+  closed it to 0ms / 0 lines, at a cost of 16 extra anchors (+1,495,000 gas) over the 60s
+  run, using the Phase 1 measured ~100k gas/batch-anchor and ~79k gas/heartbeat numbers
+  above. Written to `bench/results/exposure-window.md` / `.json`.
 
 ## M2 log
 - Phase 1 Foundations:
@@ -62,6 +82,18 @@
   - Standalone verifier (`evidence/verify-standalone.js`): single-file, zero-dependency auditor verification script checking hash chain continuity, Merkle proofs, and on-chain contract state.
 - Phase 5 Packaging & Orchestration:
   - Orchestration scripts provided for clean start and testing.
+- Phase 4b (revised plan): wired the AI incident report into the evidence pack
+  (`evidence/src/aiReport.ts` + `exportPack.ts`). `EvidencePack.aiIncidentReport` is now
+  always present: the real `IncidentReport` (`{ claims, blockedClaims, generatedAt }`) if
+  `AI_INVESTIGATOR_URL` is set and answers `GET {url}/api/incident-report` within 2s,
+  otherwise `null` with an honest "not configured / didn't respond" line in the generated
+  markdown report — never a fabricated one. `verifier/src/server.ts`'s `/api/evidence/export`
+  fetches it before calling in; the standalone `npm run export` CLI does the same. Validated
+  both ways: with no AI service configured (pack correctly shows `null` + the fallback note)
+  and against a mock `/api/incident-report` (claims and blocked claims both render, with
+  blocked ones struck through). The AI investigator itself (the LLM call + citation checker)
+  is M4's Phase 4a build — this is only the integration point, so M4 can land it without
+  touching exportPack.ts again.
 
 ## M3 log
 - Verifier (`verifier/`): pure `verifyLogs()` engine (batch-level Merkle root/lastChainHash check against

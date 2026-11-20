@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { MerkleTree } from "./merkle.ts";
 import type { MerkleProofStep } from "./merkle.ts";
+import type { AiIncidentReport } from "./aiReport.ts";
 
 export interface EvidenceEntry {
   seq: number;
@@ -55,6 +56,10 @@ export interface EvidencePack {
   };
   batches: EvidenceBatch[];
   entries: EvidenceEntry[];
+  /** AI incident investigator's citation-checked report (M4, Phase 4a), if that service
+   *  was configured and reachable for this export. null — never a fabricated report —
+   *  when it wasn't; see evidence/src/aiReport.ts. */
+  aiIncidentReport: AiIncidentReport | null;
 }
 
 export function computeSha256(data: string): string {
@@ -63,6 +68,22 @@ export function computeSha256(data: string): string {
 
 export function computeEntryHash(e: { seq: number; ts: number; host: string; source: string; message: string; prevHash: string }): string {
   return computeSha256(`${e.seq}|${e.ts}|${e.host}|${e.source}|${e.message}|${e.prevHash}`);
+}
+
+function formatAiIncidentReportSection(report: AiIncidentReport | null): string {
+  if (!report) {
+    return "_AI incident investigator not configured for this export (set `AI_INVESTIGATOR_URL` on the verifier), or it did not respond in time. No AI claims are included — this is not a gap in the cryptographic evidence above, only in the optional narrative summary of it._";
+  }
+
+  const claimLines = report.claims.length > 0
+    ? report.claims.map((c) => `- ${c.text} _(cites entries: ${c.citedEntries.join(", ")})_`).join("\n")
+    : "_No claims generated._";
+
+  const blockedSection = report.blockedClaims.length > 0
+    ? `\n\n**${report.blockedClaims.length} claim${report.blockedClaims.length === 1 ? "" : "s"} blocked by the citation checker** (cited a tampered, unverified, or nonexistent entry — never shown as fact):\n${report.blockedClaims.map((c) => `- ~~${c.text}~~ _(cites entries: ${c.citedEntries.join(", ")})_`).join("\n")}`
+    : "\n\nNo claims were blocked by the citation checker.";
+
+  return `Generated ${new Date(report.generatedAt).toISOString()}. Every claim below cites log entry numbers the verifier confirmed as real and untampered.\n\n${claimLines}${blockedSection}`;
 }
 
 export function exportEvidencePack(opts: {
@@ -74,6 +95,10 @@ export function exportEvidencePack(opts: {
   startTs?: number;
   endTs?: number;
   outputPath?: string;
+  /** Pre-fetched AI incident report to embed (verifier/src/server.ts fetches this via
+   *  evidence/src/aiReport.ts before calling in). Omit/null if the AI investigator isn't
+   *  configured or didn't respond — the pack will say so rather than go without the field. */
+  aiReport?: AiIncidentReport | null;
 }): EvidencePack {
   const vDb = new DatabaseSync(opts.victimDbPath);
 
@@ -248,6 +273,7 @@ export function exportEvidencePack(opts: {
     },
     batches,
     entries: processedEntries,
+    aiIncidentReport: opts.aiReport ?? null,
   };
 
   // Close database connections
@@ -275,6 +301,9 @@ export function exportEvidencePack(opts: {
 |----------|----------------|-------------|-----------------|---------|
 ${pack.batches.map(b => `| ${b.batchId} | ${b.startSeq}..${b.endSeq} | \`${b.merkleRoot.slice(0, 16)}...\` | \`${b.lastChainHash.slice(0, 16)}...\` | \`${b.txHash?.slice(0, 16) || 'N/A'}...\` |`).join("\n")}
 
+## AI Incident Report
+${formatAiIncidentReportSection(pack.aiIncidentReport)}
+
 ## Standalone Verification Command
 Anyone, including auditors, law enforcement, or CERT-In, can independently verify this evidence pack without relying on SakshiLog:
 \`\`\`bash
@@ -291,8 +320,11 @@ node verify-standalone.js evidence-pack.json
 if (process.argv[1] && (process.argv[1].endsWith("exportPack.ts") || process.argv[1].endsWith("exportPack.js"))) {
   const victimDb = process.env.DB_PATH || path.resolve(process.cwd(), "../agent/victim.db");
   const collectorDb = process.env.COLLECTOR_DB_PATH || path.resolve(process.cwd(), "../collector/collector.db");
+  const { fetchAiIncidentReport } = await import("./aiReport.ts");
+  const aiReport = await fetchAiIncidentReport();
   exportEvidencePack({
     victimDbPath: victimDb,
     collectorDbPath: collectorDb,
+    aiReport,
   });
 }

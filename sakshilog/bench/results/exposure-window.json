@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-11-20T14:39:37.045Z",
+  "config": {
+    "maxIntervalMs": 5000,
+    "minIntervalMs": 1000,
+    "horizonMs": 60000,
+    "attackAtMs": 23500,
+    "gasPerBatchAnchor": 100000,
+    "gasPerHeartbeatAnchor": 79000
+  },
+  "fixed": {
+    "lastAnchorAtMs": 20000,
+    "windowMs": 3500,
+    "linesExposed": 6,
+    "anchorCount": 12,
+    "heartbeats": 0,
+    "totalGas": 1200000
+  },
+  "adaptive": {
+    "lastAnchorAtMs": 23500,
+    "windowMs": 0,
+    "linesExposed": 0,
+    "anchorCount": 28,
+    "heartbeats": 5,
+    "totalGas": 2695000
+  },
+  "delta": {
+    "linesExposedReduced": 6,
+    "windowMsReduced": 3500,
+    "extraAnchors": 16,
+    "extraGas": 1495000,
+    "extraGasCostEthAtLocalGasPrice": 0.001495
+  },
+  "notes": [
+    "Simulated timeline, not a live-chain measurement: the RiskScorer and the reschedule rule are the real agent/src/riskScorer.ts and anchorServiceConnector.ts logic, run against a virtual clock so the comparison is deterministic and instant. Gas figures are the Phase 1 Hardhat gas-reporter numbers (see implementation/PROGRESS.md, M1 log), not re-measured on-chain here.",
+    "Both schedules share the same event timeline, so the comparison isolates the scheduling policy — nothing about log volume or attack timing differs between them."
+  ]
+}

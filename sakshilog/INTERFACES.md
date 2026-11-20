@@ -57,6 +57,28 @@ agent/src/anchorServiceConnector.ts prefers this service when `ANCHOR_SERVICE_UR
 in-process AnchorClient if the service is unreachable so a demo doesn't stall over one
 process being down.
 
+### Adaptive anchoring (agent/src/riskScorer.ts, M1 Phase 4a)
+A rule-based `RiskScorer` (no ML, no network call — weighted pattern matches on a 10s
+sliding window) replaces AnchorConnector's old fixed `setInterval`. Every entry from
+`HashChain.onEntries` also goes to `connector.observeEntries()`; a burst of failed logins,
+a new sudo-group member, or odd-hour activity raises `score` (0..1) and shrinks the anchor
+interval from `ANCHOR_INTERVAL_MS` (default 5000, the quiet-era ceiling) down to
+`ANCHOR_MIN_INTERVAL_MS` (default 1000, the saturated-risk floor) — the score decays back
+down on its own once the triggering events age out of the window. Disable with
+`ADAPTIVE_ANCHORING=false` to fall back to the old fixed interval.
+```ts
+RiskState { score: number, anchorIntervalMs: number, reason: string, updatedAt: number }
+```
+- `GET /api/risk` (agent, port 4001) - current `RiskState`
+- Socket.IO event `"risk"` (agent) - a `RiskState`, pushed every time a new entry is
+  observed (not just on an anchor tick) and whenever the agent cuts its current wait short
+  because risk just rose
+- `/api/stats` and `/health` also include the current risk/interval
+- Exposure-window + gas-cost comparison (fixed 5s vs adaptive): `cd bench && npm run
+  bench:exposure` → `bench/results/exposure-window.md` / `.json`. Runs the real
+  `RiskScorer` against a simulated timeline (virtual clock, not live-chain), using the
+  Phase 1 measured gas-per-anchor numbers from this file's M1 log.
+
 ## Verdicts
 OK, MODIFIED, DELETED, INSERTED, REORDERED, TRUNCATED, UNANCHORED_WINDOW, ANCHOR_SILENCE
 
@@ -93,6 +115,19 @@ chain: 8545 | agent: 4001 | collector: 4002 | anchor-service: 4003 | verifier: 4
 ### Evidence
 - `npm run export` - generates CERT-In format `evidence-pack.json` & markdown report
 - `node verify-standalone.js <pack.json> [rpcUrl]` - standalone zero-dependency auditor verifier script
+- AI incident report wiring (M2 Phase 4b, evidence/src/aiReport.ts): `EvidencePack.aiIncidentReport`
+  is always present in the pack — the real `IncidentReport` (see below) if
+  `AI_INVESTIGATOR_URL` is set and that service answers `GET {url}/api/incident-report`
+  within 2s, otherwise `null` with an honest "not configured / didn't respond" note in the
+  generated markdown report. Never a fabricated report. The AI investigator itself
+  (the LLM call + citation checker) is M4's build (Phase 4a); this is just the integration
+  point so M4 can wire it in without touching exportPack.ts again.
+```ts
+IncidentClaim { text, citedEntries: number[] }
+IncidentReport { claims: IncidentClaim[], blockedClaims: IncidentClaim[], generatedAt }
+// Checker rule (M4): every seq in citedEntries must exist, be verified OK, and not belong
+// to a tampered batch - otherwise the claim moves to blockedClaims, never shown as fact.
+```
 
 ## M3 Component Endpoints and CLIs
 
@@ -108,10 +143,12 @@ Reads the victim's SQLite logs (read-only) + the off-host collector + on-chain b
 - `POST /api/attacks/reset` - restore victim SQLite store from pristine off-host collector copy
 - `GET /api/evidence/export` - real CERT-In evidence pack (wraps `evidence/src/exportPack.ts`
   against the live victim + collector DBs and on-chain state): `{ version, entries (with
-  Merkle proofs, tampered flags), batches, stats, ... }` — see `evidence/src/exportPack.ts`
-  for the full `EvidencePack` shape. Also writes `evidence-pack.json` / `-report.md` to the
-  verifier process's cwd as a side effect (same as `npm run export` in `evidence/`).
-- Env: `VICTIM_DB_PATH`, `COLLECTOR_DB_PATH`, `ANCHOR_INTERVAL_MS` (default 5000), `BASELINE_MODE=true` to suppress ANCHOR_SILENCE (anchoring intentionally off)
+  Merkle proofs, tampered flags), batches, stats, aiIncidentReport, ... }` — see
+  `evidence/src/exportPack.ts` for the full `EvidencePack` shape. Fetches the AI incident
+  report (`evidence/src/aiReport.ts`) if `AI_INVESTIGATOR_URL` is set, else embeds `null`.
+  Also writes `evidence-pack.json` / `-report.md` to the verifier process's cwd as a side
+  effect (same as `npm run export` in `evidence/`).
+- Env: `VICTIM_DB_PATH`, `COLLECTOR_DB_PATH`, `ANCHOR_INTERVAL_MS` (default 5000), `BASELINE_MODE=true` to suppress ANCHOR_SILENCE (anchoring intentionally off), `AI_INVESTIGATOR_URL` (optional, for `/api/evidence/export`'s AI report)
 
 Detection model: per on-chain batch, rebuild the Merkle root from the victim's current local entries in that batch's range and compare it to the anchored root (catches attack 6 — chain self-consistent locally, but the root no longer matches). Per entry, cross-check against the off-host collector to name exactly what happened (DELETED / INSERTED / MODIFIED / REORDERED / TRUNCATED). If a batch's root doesn't match but every entry in it already got a specific diagnosis, that diagnosis is trusted — the whole batch is only blanket-flagged when nothing else explains the mismatch, so one tampered line doesn't turn the rest of the batch red too.
 
@@ -126,6 +163,8 @@ Mutation logic lives in `attacks/src/mutations.ts`, shared conceptually with `be
 
 ### Bench (`bench/`)
 `cd bench && npm run bench` - 20 runs per attack (1-6) at random positions on a fresh in-memory scenario, baseline vs SakshiLog, plus 20 clean runs (false-positive check) and a silence-timing sweep. Writes `bench/results/results.json` and `bench/results/results.md` (the attack matrix table with measured numbers, for the slides). Runs entirely against the pure `verifyLogs()`/`verifyBaseline()` functions — no live chain or agent needed, so it's fast and reproducible. Attacks 7 and 8 are operational / contract-level and are validated live instead (attacks/src/07, attacks/src/08, anchor-service's smoke test).
+
+`cd bench && npm run bench:exposure` (M1 Phase 4b) - fixed 5s anchor interval vs adaptive anchoring on the same simulated brute-force-login-then-attack timeline, run against the real `agent/src/riskScorer.ts` (virtual clock, not live-chain). Writes `bench/results/exposure-window.md` / `.json`: lines exposed at the moment of attack under each policy, and the gas cost of the extra anchors adaptive anchoring fires (using the Phase 1 measured gas-per-anchor numbers from this file's M1 log).
 
 ### Known caveat when testing by hand
 `anchor-service`'s smoke test (`npm run smoke`) anchors synthetic batches straight to whatever contract is currently deployed. If you run it against the *same* deployment you then use for a live agent demo, the verifier will (correctly) flag the smoke test's unrelated batches as not matching the agent's real data. Redeploy fresh (`cd contracts && npm run deploy:local`) before a real demo run if `npm run smoke` has touched that chain.
