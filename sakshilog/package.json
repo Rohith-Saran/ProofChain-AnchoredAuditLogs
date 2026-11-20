@@ -19,6 +19,8 @@
     "node": "npm run node --workspace=@sakshilog/contracts",
     "compile": "npm run compile --workspace=@sakshilog/contracts",
     "deploy:local": "npm run deploy:local --workspace=@sakshilog/contracts",
+    "quai:wallet": "npm run quai:wallet --workspace=@sakshilog/contracts",
+    "deploy:quai": "npm run deploy:quai --workspace=@sakshilog/contracts",
     "test:contracts": "npm run test --workspace=@sakshilog/contracts",
     "test:agent": "npm run test --workspace=@sakshilog/agent",
     "test:ai": "npm run test --workspace=@sakshilog/ai",
@@ -27,5 +29,8 @@
     "bench": "npm run bench --workspace=@sakshilog/bench",
     "bench:exposure": "npm run bench:exposure --workspace=@sakshilog/bench",
     "start:ai": "npm run start --workspace=@sakshilog/ai"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
   }
 }

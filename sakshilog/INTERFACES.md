@@ -24,6 +24,35 @@ function getBatch(uint256 id) view returns (Batch);
   Anything else with startSeq > endSeq reverts InvalidRange.
 - Hashes go on-chain as bytes32: 0x + 64 lowercase hex. anchorClient.toBytes32() accepts sha256 hex with or without 0x.
 
+### Quai Network deployment (contracts/, M1 Phase 5)
+Sponsor requirement: the same contract additionally deployed on Quai Network's Orchard
+testnet (Cyprus-1 zone), using Quai's own tooling (`quais.js`, `@quai/hardhat-deploy-
+metadata`) - not a generic ethers-pointed-at-a-new-RPC swap. Does not replace the local
+Hardhat chain used for the live demo. Only one zone (Cyprus-1) exists on Orchard/mainnet
+today, so Quai's Prime/Region/Zone sharding and cross-zone ETXs are not exercised by this.
+Full walkthrough: `contracts/QUAI_DEPLOYMENT.md`.
+- `npm run quai:wallet` (in `contracts/`) - generates a dedicated Cyprus-1-valid wallet
+  via `QuaiHDWallet.fromMnemonic(...).getNextAddress(0, Zone.Cyprus1)` (Quai's documented
+  zone-derivation path), independently re-checked with `quais.getZoneForAddress()` /
+  `isQuaiAddress()`. Prints to the terminal only, writes nothing to disk. Must be funded
+  via https://orchard.faucet.quai.network and must never hold real funds.
+- `npm run deploy:quai` (`scripts/deployQuai.ts`, network `cyprus1`) - checks the
+  deployer's balance first (refuses at 0, pointing to the faucet), pushes IPFS metadata
+  for Quaiscan verification, deploys via `quais.ContractFactory` (which auto-grinds the
+  *contract's* address to the Cyprus-1 prefix), writes `deployments/cyprus1.json` matching
+  the existing `deployments/<network>.json` convention.
+- `AnchorRegistry.sol`'s pragma is `^0.8.20` (down from `^0.8.24`): Quai's own Hardhat
+  example pins compilers to 0.8.17/0.8.20 with `evmVersion: "london"` - nothing in the
+  contract needs anything from 0.8.21+, and a newer EVM target risks emitting opcodes
+  (e.g. `PUSH0` from Shanghai) Quai's EVM fork doesn't document support for. This is now
+  the one shared compiler config for every network, local included.
+- Env (`contracts/.env`, gitignored; see `.env.example`): `RPC_URL` (default
+  `https://orchard.rpc.quai.network`), `CHAIN_ID` (default 15000), `CYPRUS1_PK` (required
+  for `deploy:quai`, never a key holding real funds).
+- `ts-node` is also declared at the monorepo root's `devDependencies` - an npm workspace
+  hoisting quirk left it un-hoisted under `contracts/node_modules` only, where Hardhat
+  (hoisted to the root) couldn't resolve it. Harmless duplication, not a real dependency.
+
 ### anchorClient (anchor-service/src/anchorClient.ts)
 ```ts
 const c = AnchorClient.fromEnv();                 // writer; AnchorClient.fromEnv({ readOnly: true }) for readers

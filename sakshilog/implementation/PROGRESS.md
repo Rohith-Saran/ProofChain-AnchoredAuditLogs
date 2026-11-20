@@ -7,7 +7,7 @@
 | 2 End-to-end | H4:00-8:00 | [ ] | H8 GO / NO-GO |
 | 3 Attacks + depth | H8:00-11:30 | [x] | H11:30 checkpoint: All 8 attacks run from UI/API, red highlights, diff view, reset verified (M1, M2, M3, M4) |
 | 4 Evidence + AI (revised) | H11:30-15:30 | [x] | H15:30 FEATURE FREEZE: adaptive anchoring + exposure/gas bench (M1), AI report wired into evidence pack (M2), benchmark + AI citation-checker test (M3), AI investigator service + dashboard risk meter/report panel (M4) |
-| 5 Pitch | H15:30-17:30 | [ ] | |
+| 5 Pitch | H15:30-17:30 | [ ] | M1's Quai Network testnet deployment done (see M1 log); pitch rehearsal, backup video, clean install still open |
 
 ## Owners
 - M1: blockchain, anchor service
@@ -54,6 +54,40 @@
   closed it to 0ms / 0 lines, at a cost of 16 extra anchors (+1,495,000 gas) over the 60s
   run, using the Phase 1 measured ~100k gas/batch-anchor and ~79k gas/heartbeat numbers
   above. Written to `bench/results/exposure-window.md` / `.json`.
+- Phase 5: Quai Network deployment (sponsor requirement - see INTERFACES.md, "Quai Network
+  deployment"). Researched Quai's actual docs and its own `dominant-strategies/hardhat-
+  example` repo directly (source code, not just prose) before writing anything, since
+  getting the address-derivation/compiler-version details wrong would silently break a
+  real deployment: confirmed Orchard Cyprus-1 is chainId 15000, confirmed the exact
+  `quais.js`/`@quai/hardhat-deploy-metadata`/`@quai/quais-upgrades` versions and hardhat
+  config shape their own template uses, and confirmed (by reading `quais`'s own TS source,
+  not just its docs) that `QuaiHDWallet.fromMnemonic(...).getNextAddress(0, Zone.Cyprus1)`
+  is the documented way to derive a Cyprus-1-valid deployer address - no brute-force
+  address grinding needed.
+  - `AnchorRegistry.sol`'s pragma dropped from `^0.8.24` to `^0.8.20` to match Quai's own
+    pinned compiler ceiling (`evmVersion: "london"`, `metadata.bytecodeHash: "ipfs"`) - one
+    shared compiler config for every network now, local included. All 19 existing contract
+    tests and the local `deploy:local` flow re-verified passing after the change.
+  - New `contracts/scripts/quaiWallet.ts` (`npm run quai:wallet`): generates a dedicated
+    testnet wallet, verified live across several runs to always derive a Cyprus-1-valid,
+    Quai-ledger address (cross-checked against `quais.getZoneForAddress()`/
+    `isQuaiAddress()`, not just trusted).
+  - New `contracts/scripts/deployQuai.ts` (`npm run deploy:quai`): balance-checks before
+    attempting a deploy (refuses at 0, links the faucet), pushes IPFS metadata via
+    `@quai/hardhat-deploy-metadata` for Quaiscan verification, deploys via
+    `quais.ContractFactory`. Validated live end-to-end against the real Orchard RPC with a
+    freshly generated, unfunded, disposable key: correct address derivation, a real
+    `getBalance()` round-trip to `https://orchard.rpc.quai.network`, and the expected
+    "fund it first" refusal at 0 balance - everything short of an actual funded deploy,
+    which needs a real team-held wallet and faucet funds, not something to simulate here.
+  - `contracts/QUAI_DEPLOYMENT.md` walks through wallet generation -> funding -> `.env` ->
+    deploy -> manual Quaiscan verification (no automated verify task exists yet upstream).
+  - Fixed, incidentally: the root `package-lock.json` was stale/corrupted (predated this
+    work - `npm ci`/`npm install` from the repo root failed with an unrelated-looking
+    "Invalid Version" arborist crash even on a clean checkout of the last pushed commit).
+    Regenerated it from scratch; also added `ts-node` to the root `devDependencies` since
+    npm's hoisting had left it stranded under `contracts/node_modules` where the
+    root-hoisted `hardhat` couldn't resolve it.
 
 ## M2 log
 - Phase 1 Foundations:

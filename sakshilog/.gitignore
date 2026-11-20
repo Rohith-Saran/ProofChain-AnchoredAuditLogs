@@ -16,6 +16,7 @@ out/
 .env
 .env.*
 *.env
+!.env.example
 *.secret
 *.key
 *.pem

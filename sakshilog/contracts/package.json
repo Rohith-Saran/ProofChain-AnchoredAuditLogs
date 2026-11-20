@@ -9,7 +9,15 @@
     "test:gas": "cross-env REPORT_GAS=true hardhat test",
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "quai:wallet": "hardhat run scripts/quaiWallet.ts",
+    "deploy:quai": "hardhat run scripts/deployQuai.ts --network cyprus1",
     "clean": "hardhat clean"
+  },
+  "dependencies": {
+    "@quai/hardhat-deploy-metadata": "^1.0.8",
+    "@quai/quais-upgrades": "^3.8.14",
+    "dotenv": "^16.4.5",
+    "quais": "1.0.0-alpha.58"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+// 0.8.20, not something newer: Quai Network's own Hardhat example (dominant-strategies/
+// hardhat-example) pins its compilers to 0.8.17/0.8.20 with evmVersion "london" -
+// Quai's EVM fork doesn't document support for opcodes introduced after that (e.g.
+// PUSH0 from Shanghai, which a 0.8.20+ compiler defaults to targeting on newer EVM
+// versions). Nothing in this contract needs anything from 0.8.21-0.8.24.
+pragma solidity ^0.8.20;
 
 /// @title AnchorRegistry
 /// @notice Append-only registry of SakshiLog batch anchors. Each batch commits to
