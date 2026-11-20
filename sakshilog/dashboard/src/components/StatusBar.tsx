@@ -10,6 +10,8 @@ export const StatusBar: React.FC = () => {
   const risk = useStore((s) => s.risk);
   const isDemoMode = useStore((s) => s.isDemoMode);
   const toggleDemoMode = useStore((s) => s.toggleDemoMode);
+  const isDarkMode = useStore((s) => s.isDarkMode);
+  const toggleDarkMode = useStore((s) => s.toggleDarkMode);
   const toggleMockMode = useStore((s) => s.toggleMockMode);
   const resetDemo = useStore((s) => s.resetDemo);
   const systemStatus = useStore((s) => s.systemStatus);
@@ -200,6 +202,24 @@ export const StatusBar: React.FC = () => {
           }}
         >
           Reset Demo
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          title="Toggle dark mode"
+          style={{
+            padding: "4px 8px",
+            borderRadius: "6px",
+            border: isDarkMode ? "1px solid var(--chain)" : "1px solid var(--line)",
+            background: isDarkMode ? "var(--chain)" : "var(--surface)",
+            color: isDarkMode ? "#ffffff" : "var(--ink)",
+            fontSize: "0.75rem",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+        >
+          {isDarkMode ? "☀ Light" : "☾ Dark"}
         </button>
 
         <button

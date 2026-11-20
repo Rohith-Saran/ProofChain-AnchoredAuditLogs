@@ -3,11 +3,14 @@ import type { LogEntry, VerificationResult } from "../types";
 import { HashText } from "./HashText";
 import { VerdictBadge } from "./VerdictBadge";
 
+export type LogStatusFilter = "all" | "ok" | "unanchored" | "tampered";
+
 interface LogTableProps {
   logs: LogEntry[];
   verification: VerificationResult | null;
   selectedLogSeq: number | null;
   onSelectLog: (seq: number) => void;
+  statusFilter?: LogStatusFilter;
 }
 
 export const LogTable: React.FC<LogTableProps> = ({
@@ -15,6 +18,7 @@ export const LogTable: React.FC<LogTableProps> = ({
   verification,
   selectedLogSeq,
   onSelectLog,
+  statusFilter = "all",
 }) => {
   // Map verdicts and details by seq
   const verdictEntryMap = React.useMemo(() => {
@@ -82,6 +86,15 @@ export const LogTable: React.FC<LogTableProps> = ({
     return rows.sort((a, b) => b.seq - a.seq).slice(0, 200);
   }, [logs, verification, verdictEntryMap]);
 
+  const filteredRows = React.useMemo(() => {
+    if (statusFilter === "all") return displayRows;
+    return displayRows.filter((row) => {
+      if (statusFilter === "ok") return row.verdict === "OK";
+      if (statusFilter === "unanchored") return row.verdict === "UNANCHORED_WINDOW";
+      return row.verdict !== "OK" && row.verdict !== "UNANCHORED_WINDOW"; // tampered
+    });
+  }, [displayRows, statusFilter]);
+
   return (
     <div
       className="log-table-container"
@@ -121,14 +134,14 @@ export const LogTable: React.FC<LogTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {displayRows.length === 0 ? (
+          {filteredRows.length === 0 ? (
             <tr>
               <td colSpan={6} style={{ padding: "30px", textAlign: "center", color: "var(--ink-muted)" }}>
-                No log entries recorded yet.
+                {displayRows.length === 0 ? "No log entries recorded yet." : "No entries match this filter."}
               </td>
             </tr>
           ) : (
-            displayRows.map((row) => {
+            filteredRows.map((row) => {
               const verdict = row.verdict as any;
               const isTampered = verdict !== "OK" && verdict !== "UNANCHORED_WINDOW";
               const isSelected = selectedLogSeq === row.seq;

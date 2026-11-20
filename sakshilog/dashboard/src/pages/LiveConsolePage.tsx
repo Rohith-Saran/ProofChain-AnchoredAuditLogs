@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useLogs } from "../hooks/useLogs";
 import { useAnchors } from "../hooks/useAnchors";
 import { useVerdicts } from "../hooks/useVerdicts";
-import { LogTable } from "../components/LogTable";
+import { LogTable, type LogStatusFilter } from "../components/LogTable";
 import { AnchorTimeline } from "../components/AnchorTimeline";
 import { DiffView } from "../components/DiffView";
 import { apiClient } from "../api/client";
@@ -16,6 +16,7 @@ export const LiveConsolePage: React.FC = () => {
 
   const [isSimulating, setIsSimulating] = useState(false);
   const [isTriggeringAnchor, setIsTriggeringAnchor] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<LogStatusFilter>("all");
 
   const selectedEntryVerdict = React.useMemo(() => {
     if (!selectedLogSeq || !verification?.entries) return null;
@@ -155,11 +156,39 @@ export const LiveConsolePage: React.FC = () => {
             </span>
           </div>
 
+          <div style={{ display: "flex", gap: "8px" }}>
+            {([
+              ["all", "All"],
+              ["ok", "OK"],
+              ["unanchored", "Unanchored"],
+              ["tampered", "Tampered"],
+            ] as [LogStatusFilter, string][]).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatusFilter(key)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "16px",
+                  border: statusFilter === key ? "1px solid var(--chain)" : "1px solid var(--line)",
+                  background: statusFilter === key ? "var(--chain)" : "var(--surface)",
+                  color: statusFilter === key ? "#fff" : "var(--ink)",
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <LogTable
             logs={logs}
             verification={verification}
             selectedLogSeq={selectedLogSeq}
             onSelectLog={(seq) => setSelectedLogSeq(seq)}
+            statusFilter={statusFilter}
           />
         </div>
 

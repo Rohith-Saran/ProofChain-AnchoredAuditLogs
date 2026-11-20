@@ -12,6 +12,7 @@ interface AppState {
   connectionStatus: ConnectionStatus;
   isAnchorSilent: boolean;
   isDemoMode: boolean;
+  isDarkMode: boolean;
   selectedAttack: AttackMetadata;
   currentStepIndex: number;
   selectedLogSeq: number | null;
@@ -37,6 +38,8 @@ interface AppState {
   init: () => void;
   setDemoMode: (enabled: boolean) => void;
   toggleDemoMode: () => void;
+  setDarkMode: (enabled: boolean) => void;
+  toggleDarkMode: () => void;
   toggleMockMode: () => void;
   setSelectedAttack: (attack: AttackMetadata) => void;
   setStepIndex: (index: number) => void;
@@ -61,6 +64,10 @@ export const useStore = create<AppState>((set, get) => ({
   connectionStatus: isMockMode() ? "mock" : "connected",
   isAnchorSilent: false,
   isDemoMode: window.location.hash.includes("demo=1") || window.location.search.includes("demo=1"),
+  isDarkMode:
+    localStorage.getItem("sakshilog-dark-mode") === "1" ||
+    (localStorage.getItem("sakshilog-dark-mode") === null &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches),
   selectedAttack: ATTACKS[5], // Attack 6 default (Hero screen)
   currentStepIndex: 0,
   selectedLogSeq: null,
@@ -74,6 +81,10 @@ export const useStore = create<AppState>((set, get) => ({
   aiReportError: null,
 
   init: () => {
+    // Apply the persisted/system-preferred theme class now - the initial state above
+    // only computes the value, it doesn't touch the DOM.
+    document.body.classList.toggle("dark-mode", get().isDarkMode);
+
     // Listen to realtime socket
     realtime.onStatusChange((status) => {
       set({ connectionStatus: status });
@@ -133,6 +144,17 @@ export const useStore = create<AppState>((set, get) => ({
   toggleDemoMode: () => {
     const next = !get().isDemoMode;
     get().setDemoMode(next);
+  },
+
+  setDarkMode: (enabled: boolean) => {
+    set({ isDarkMode: enabled });
+    document.body.classList.toggle("dark-mode", enabled);
+    localStorage.setItem("sakshilog-dark-mode", enabled ? "1" : "0");
+  },
+
+  toggleDarkMode: () => {
+    const next = !get().isDarkMode;
+    get().setDarkMode(next);
   },
 
   toggleMockMode: () => {

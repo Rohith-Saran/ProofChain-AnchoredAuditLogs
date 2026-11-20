@@ -1,0 +1,20 @@
+# Normalize line endings for everyone (Windows, WSL, macOS, Linux) regardless of
+# their local core.autocrlf setting, so git stores one consistent line ending and
+# `git status` doesn't report every text file as changed when switching environments.
+* text=auto
+
+# Never line-ending-normalize binary files, even if git's own detection would miss one.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.pptx binary
+*.docx binary
+*.xlsx binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.zip binary

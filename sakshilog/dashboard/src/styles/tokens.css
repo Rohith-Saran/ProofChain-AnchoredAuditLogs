@@ -34,6 +34,24 @@ body.demo-mode,
   --font-size-3xl: 44px;
 }
 
+body.dark-mode,
+.dark-mode {
+  --bg: #1b1713;           /* dark paper */
+  --surface: #241f1a;
+  --ink: #f3ebe0;
+  --ink-muted: #ab9d8f;
+  --line: #3a332c;
+  --ok: #4fbf82;           /* OK, anchored */
+  --warn: #e3a23f;         /* UNANCHORED_WINDOW */
+  --bad: #e3604c;          /* tampered verdicts */
+  --chain: #7c8bf0;        /* blockchain / anchors */
+  --shadow: 0 1px 0 var(--line), 0 12px 30px -18px rgba(0, 0, 0, 0.7);
+}
+
+body.dark-mode {
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
