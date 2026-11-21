@@ -101,21 +101,21 @@ export const LaneDiagram: React.FC<LaneDiagramProps> = ({ lane, isRightLane = fa
 
             {isCompromised ? (
               <g>
-                <rect x="146" y="19" width="108" height="18" rx="4" fill="rgba(192, 57, 43, 0.15)" stroke="var(--bad)" strokeWidth="1" />
+                <rect x="146" y="19" width="108" height="18" rx="4" style={{ fill: "color-mix(in srgb, var(--bad) 15%, transparent)" }} stroke="var(--bad)" strokeWidth="1" />
                 <text x="200" y="31.5" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="7.5" fontWeight="700" fill="var(--bad)">
                   ⚠️ ROOT COMPROMISED
                 </text>
               </g>
             ) : isOffline ? (
               <g>
-                <rect x="156" y="19" width="98" height="18" rx="4" fill="rgba(107, 95, 85, 0.15)" stroke="var(--ink-muted)" strokeWidth="1" />
+                <rect x="156" y="19" width="98" height="18" rx="4" style={{ fill: "color-mix(in srgb, var(--ink-muted) 15%, transparent)" }} stroke="var(--ink-muted)" strokeWidth="1" />
                 <text x="205" y="31.5" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="7.5" fontWeight="700" fill="var(--ink-muted)">
                   ✕ DAEMON DEAD
                 </text>
               </g>
             ) : (
               <g>
-                <rect x="176" y="19" width="78" height="18" rx="4" fill="rgba(47, 125, 79, 0.12)" stroke="var(--ok)" strokeWidth="1" />
+                <rect x="176" y="19" width="78" height="18" rx="4" style={{ fill: "color-mix(in srgb, var(--ok) 12%, transparent)" }} stroke="var(--ok)" strokeWidth="1" />
                 <text x="215" y="31.5" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="7.5" fontWeight="700" fill="var(--ok)">
                   ✓ SECURE
                 </text>
@@ -128,7 +128,7 @@ export const LaneDiagram: React.FC<LaneDiagramProps> = ({ lane, isRightLane = fa
             <>
               {/* Off-Host Collector Box */}
               <g className="collector-container">
-                <rect x="274" y="14" width="174" height="90" rx="8" fill="rgba(47, 125, 79, 0.08)" stroke="var(--ok)" strokeWidth="1.5" />
+                <rect x="274" y="14" width="174" height="90" rx="8" style={{ fill: "color-mix(in srgb, var(--ok) 8%, transparent)" }} stroke="var(--ok)" strokeWidth="1.5" />
                 <text x="286" y="34" fontFamily="var(--font-display)" fontSize="11" fontWeight="700" fill="var(--ok)">
                   Collector (Port 4002)
                 </text>
@@ -142,7 +142,7 @@ export const LaneDiagram: React.FC<LaneDiagramProps> = ({ lane, isRightLane = fa
 
               {/* Blockchain Anchor Box */}
               <g className="chain-container">
-                <rect x="274" y="116" width="174" height="90" rx="8" fill="rgba(59, 76, 192, 0.08)" stroke="var(--chain)" strokeWidth="1.5" />
+                <rect x="274" y="116" width="174" height="90" rx="8" style={{ fill: "color-mix(in srgb, var(--chain) 8%, transparent)" }} stroke="var(--chain)" strokeWidth="1.5" />
                 <text x="286" y="136" fontFamily="var(--font-display)" fontSize="11" fontWeight="700" fill="var(--chain)">
                   Blockchain (Hardhat)
                 </text>
@@ -224,7 +224,7 @@ export const LaneDiagram: React.FC<LaneDiagramProps> = ({ lane, isRightLane = fa
                     width="232"
                     height="22"
                     rx="4"
-                    fill={isTampered ? "rgba(192, 57, 43, 0.15)" : isRecomputed ? "rgba(199, 134, 26, 0.15)" : "#ffffff"}
+                    style={{ fill: isTampered ? "color-mix(in srgb, var(--bad) 15%, transparent)" : isRecomputed ? "color-mix(in srgb, var(--warn) 15%, transparent)" : "var(--surface)" }}
                     stroke={blockColor}
                     strokeWidth={isTampered || isHighlighted ? "2" : "1"}
                   />

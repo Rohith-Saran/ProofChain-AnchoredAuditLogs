@@ -18,6 +18,10 @@ export default defineConfig({
       plugins: [],
     },
   },
+  resolve: {
+    // Originkit sections import each other via "@/components/originkit/...".
+    alias: { "@": path.resolve(__dirname, "src") },
+  },
   server: {
     port: 5173,
     host: true,

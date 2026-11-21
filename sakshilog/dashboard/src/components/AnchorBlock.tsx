@@ -23,7 +23,7 @@ export const AnchorBlock: React.FC<AnchorBlockProps> = ({
       onClick={() => onSelect?.(batch.batchId)}
       className={`anchor-block-card ${isSelected ? "selected" : ""}`}
       style={{
-        background: isSelected ? "rgba(59, 76, 192, 0.08)" : "var(--surface)",
+        background: isSelected ? "color-mix(in srgb, var(--chain) 8%, transparent)" : "var(--surface)",
         border: `1px solid ${isSelected ? "var(--chain)" : "var(--line)"}`,
         borderLeft: "4px solid var(--chain)",
         borderRadius: "var(--radius)",
@@ -34,7 +34,7 @@ export const AnchorBlock: React.FC<AnchorBlockProps> = ({
         gap: "6px",
         fontSize: "0.875rem",
         transition: "all 0.15s ease",
-        boxShadow: isSelected ? "0 4px 12px rgba(59, 76, 192, 0.15)" : "var(--shadow)",
+        boxShadow: isSelected ? "0 4px 12px color-mix(in srgb, var(--chain) 15%, transparent)" : "var(--shadow)",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

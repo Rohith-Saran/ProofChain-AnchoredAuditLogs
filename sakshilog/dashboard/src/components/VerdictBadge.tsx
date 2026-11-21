@@ -31,7 +31,7 @@ export function getVerdictConfig(verdict: Verdict): VerdictConfig {
     case "OK":
       return {
         color: "var(--ok)",
-        bgColor: "rgba(47, 125, 79, 0.12)",
+        bgColor: "color-mix(in srgb, var(--ok) 12%, transparent)",
         icon: <CheckIcon size={14} />,
         label: "OK",
         description: "Matches the chain",
@@ -39,7 +39,7 @@ export function getVerdictConfig(verdict: Verdict): VerdictConfig {
     case "MODIFIED":
       return {
         color: "var(--bad)",
-        bgColor: "rgba(192, 57, 43, 0.12)",
+        bgColor: "color-mix(in srgb, var(--bad) 12%, transparent)",
         icon: <PencilIcon size={14} />,
         label: "MODIFIED",
         description: "Line was edited",
@@ -47,7 +47,7 @@ export function getVerdictConfig(verdict: Verdict): VerdictConfig {
     case "DELETED":
       return {
         color: "var(--bad)",
-        bgColor: "rgba(192, 57, 43, 0.12)",
+        bgColor: "color-mix(in srgb, var(--bad) 12%, transparent)",
         icon: <MinusIcon size={14} />,
         label: "DELETED",
         description: "Line was removed",
@@ -55,7 +55,7 @@ export function getVerdictConfig(verdict: Verdict): VerdictConfig {
     case "INSERTED":
       return {
         color: "var(--bad)",
-        bgColor: "rgba(192, 57, 43, 0.12)",
+        bgColor: "color-mix(in srgb, var(--bad) 12%, transparent)",
         icon: <PlusIcon size={14} />,
         label: "INSERTED",
         description: "Fake line added",
@@ -63,7 +63,7 @@ export function getVerdictConfig(verdict: Verdict): VerdictConfig {
     case "REORDERED":
       return {
         color: "var(--bad)",
-        bgColor: "rgba(192, 57, 43, 0.12)",
+        bgColor: "color-mix(in srgb, var(--bad) 12%, transparent)",
         icon: <SwapIcon size={14} />,
         label: "REORDERED",
         description: "Order changed",
@@ -71,7 +71,7 @@ export function getVerdictConfig(verdict: Verdict): VerdictConfig {
     case "TRUNCATED":
       return {
         color: "var(--bad)",
-        bgColor: "rgba(192, 57, 43, 0.12)",
+        bgColor: "color-mix(in srgb, var(--bad) 12%, transparent)",
         icon: <ScissorsIcon size={14} />,
         label: "TRUNCATED",
         description: "Tail was cut",
@@ -79,7 +79,7 @@ export function getVerdictConfig(verdict: Verdict): VerdictConfig {
     case "UNANCHORED_WINDOW":
       return {
         color: "var(--warn)",
-        bgColor: "rgba(199, 134, 26, 0.12)",
+        bgColor: "color-mix(in srgb, var(--warn) 12%, transparent)",
         icon: <ClockIcon size={14} />,
         label: "UNANCHORED_WINDOW",
         description: "Not yet anchored",
@@ -87,7 +87,7 @@ export function getVerdictConfig(verdict: Verdict): VerdictConfig {
     case "ANCHOR_SILENCE":
       return {
         color: "var(--bad)",
-        bgColor: "rgba(192, 57, 43, 0.12)",
+        bgColor: "color-mix(in srgb, var(--bad) 12%, transparent)",
         icon: <PulseIcon size={14} />,
         label: "ANCHOR_SILENCE",
         description: "Agent went silent",
@@ -95,7 +95,7 @@ export function getVerdictConfig(verdict: Verdict): VerdictConfig {
     default:
       return {
         color: "var(--ink-muted)",
-        bgColor: "rgba(107, 95, 85, 0.12)",
+        bgColor: "color-mix(in srgb, var(--ink-muted) 12%, transparent)",
         icon: <ClockIcon size={14} />,
         label: verdict,
         description: "Unknown",

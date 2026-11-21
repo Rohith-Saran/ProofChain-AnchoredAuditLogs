@@ -75,7 +75,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
             style={{
               padding: "10px 14px",
               borderRadius: "8px",
-              background: "rgba(192, 57, 43, 0.08)",
+              background: "color-mix(in srgb, var(--bad) 8%, transparent)",
               border: "1px solid var(--bad)",
               fontSize: "0.9rem",
               color: "var(--bad)",
@@ -93,7 +93,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
               border: "2px solid var(--bad)",
               borderRadius: "10px",
               padding: "16px",
-              background: "rgba(192, 57, 43, 0.04)",
+              background: "color-mix(in srgb, var(--bad) 4%, transparent)",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
@@ -110,7 +110,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
                 <div><strong>Source:</strong> {local.source}</div>
                 <div
                   style={{
-                    background: offHost && local.message !== offHost.message ? "rgba(192, 57, 43, 0.15)" : "transparent",
+                    background: offHost && local.message !== offHost.message ? "color-mix(in srgb, var(--bad) 15%, transparent)" : "transparent",
                     padding: "4px 6px",
                     borderRadius: "4px",
                     wordBreak: "break-all",
@@ -120,7 +120,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
                 </div>
                 <div
                   style={{
-                    background: offHost && local.hash !== offHost.hash ? "rgba(192, 57, 43, 0.15)" : "transparent",
+                    background: offHost && local.hash !== offHost.hash ? "color-mix(in srgb, var(--bad) 15%, transparent)" : "transparent",
                     padding: "4px 6px",
                     borderRadius: "4px",
                   }}
@@ -129,7 +129,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
                 </div>
                 <div
                   style={{
-                    background: offHost && local.prevHash !== offHost.prevHash ? "rgba(192, 57, 43, 0.15)" : "transparent",
+                    background: offHost && local.prevHash !== offHost.prevHash ? "color-mix(in srgb, var(--bad) 15%, transparent)" : "transparent",
                     padding: "4px 6px",
                     borderRadius: "4px",
                   }}
@@ -141,7 +141,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
               <div
                 style={{
                   color: "var(--bad)",
-                  background: "rgba(192, 57, 43, 0.08)",
+                  background: "color-mix(in srgb, var(--bad) 8%, transparent)",
                   padding: "16px",
                   borderRadius: "8px",
                   fontSize: "0.9rem",
@@ -163,7 +163,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
               border: "2px solid var(--ok)",
               borderRadius: "10px",
               padding: "16px",
-              background: "rgba(47, 125, 79, 0.04)",
+              background: "color-mix(in srgb, var(--ok) 4%, transparent)",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
@@ -180,7 +180,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
                 <div><strong>Source:</strong> {offHost.source}</div>
                 <div
                   style={{
-                    background: local && local.message !== offHost.message ? "rgba(47, 125, 79, 0.15)" : "transparent",
+                    background: local && local.message !== offHost.message ? "color-mix(in srgb, var(--ok) 15%, transparent)" : "transparent",
                     padding: "4px 6px",
                     borderRadius: "4px",
                     wordBreak: "break-all",
@@ -190,7 +190,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
                 </div>
                 <div
                   style={{
-                    background: local && local.hash !== offHost.hash ? "rgba(47, 125, 79, 0.15)" : "transparent",
+                    background: local && local.hash !== offHost.hash ? "color-mix(in srgb, var(--ok) 15%, transparent)" : "transparent",
                     padding: "4px 6px",
                     borderRadius: "4px",
                   }}
@@ -199,7 +199,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
                 </div>
                 <div
                   style={{
-                    background: local && local.prevHash !== offHost.prevHash ? "rgba(47, 125, 79, 0.15)" : "transparent",
+                    background: local && local.prevHash !== offHost.prevHash ? "color-mix(in srgb, var(--ok) 15%, transparent)" : "transparent",
                     padding: "4px 6px",
                     borderRadius: "4px",
                   }}
@@ -232,7 +232,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ verdictEntry, onClose }) => 
           style={{
             padding: "10px 14px",
             borderRadius: "8px",
-            background: "rgba(59, 76, 192, 0.08)",
+            background: "color-mix(in srgb, var(--chain) 8%, transparent)",
             border: "1px solid var(--chain)",
             fontSize: "0.82rem",
             color: "var(--ink)",

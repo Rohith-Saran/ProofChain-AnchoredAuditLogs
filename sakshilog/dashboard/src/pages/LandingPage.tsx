@@ -1,13 +1,22 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { Link } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import { ShieldIcon } from "../components/Icons";
+import { ErrorBoundary } from "../components/ErrorBoundary";
+// three.js (the hero's particle spheres) is ~500 KB, so it loads only with this page.
+const Hero41 = lazy(() => import("@/components/originkit/hero-41"));
 
 export const LandingPage: React.FC = () => {
   const systemStatus = useStore((s) => s.systemStatus);
   const connectionStatus = useStore((s) => s.connectionStatus);
 
   return (
+    <>
+    <ErrorBoundary>
+      <Suspense fallback={null}>
+        <Hero41 />
+      </Suspense>
+    </ErrorBoundary>
     <div style={{ maxWidth: "1080px", margin: "0 auto", padding: "40px 24px", display: "flex", flexDirection: "column", gap: "36px" }}>
       {/* Hero section */}
       <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
@@ -18,7 +27,7 @@ export const LandingPage: React.FC = () => {
             gap: "8px",
             padding: "4px 14px",
             borderRadius: "20px",
-            background: "rgba(59, 76, 192, 0.1)",
+            background: "color-mix(in srgb, var(--chain) 10%, transparent)",
             color: "var(--chain)",
             fontFamily: "var(--font-mono)",
             fontSize: "0.85rem",
@@ -180,5 +189,6 @@ export const LandingPage: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };

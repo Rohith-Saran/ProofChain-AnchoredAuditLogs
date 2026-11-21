@@ -25,7 +25,7 @@ export const ResultsPage: React.FC = () => {
             style={{
               padding: "2px 8px",
               borderRadius: "4px",
-              background: "rgba(47, 125, 79, 0.12)",
+              background: "color-mix(in srgb, var(--ok) 12%, transparent)",
               color: "var(--ok)",
               fontFamily: "var(--font-mono)",
               fontSize: "0.75rem",
@@ -97,7 +97,7 @@ export const ResultsPage: React.FC = () => {
                 style={{
                   padding: "4px 8px",
                   borderRadius: "6px",
-                  background: s.actualTriggered ? "rgba(192, 57, 43, 0.12)" : "rgba(47, 125, 79, 0.12)",
+                  background: s.actualTriggered ? "color-mix(in srgb, var(--bad) 12%, transparent)" : "color-mix(in srgb, var(--ok) 12%, transparent)",
                   color: s.actualTriggered ? "var(--bad)" : "var(--ok)",
                   fontWeight: 600,
                 }}

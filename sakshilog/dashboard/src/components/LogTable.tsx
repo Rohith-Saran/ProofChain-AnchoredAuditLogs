@@ -155,11 +155,11 @@ export const LogTable: React.FC<LogTableProps> = ({
                     borderBottom: "1px solid var(--line)",
                     cursor: "pointer",
                     background: isSelected
-                      ? "rgba(59, 76, 192, 0.12)"
+                      ? "color-mix(in srgb, var(--chain) 12%, transparent)"
                       : row.isMissingLocal
-                      ? "rgba(192, 57, 43, 0.15)"
+                      ? "color-mix(in srgb, var(--bad) 15%, transparent)"
                       : isTampered
-                      ? "rgba(192, 57, 43, 0.08)"
+                      ? "color-mix(in srgb, var(--bad) 8%, transparent)"
                       : "transparent",
                     borderLeft: isTampered
                       ? "5px solid var(--bad)"
@@ -188,7 +188,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                         padding: "2px 6px",
                         borderRadius: "4px",
                         background: row.isMissingLocal
-                          ? "rgba(192, 57, 43, 0.2)"
+                          ? "color-mix(in srgb, var(--bad) 20%, transparent)"
                           : "rgba(0,0,0,0.05)",
                         color: row.isMissingLocal ? "var(--bad)" : "inherit",
                         fontWeight: row.isMissingLocal ? 700 : "normal",

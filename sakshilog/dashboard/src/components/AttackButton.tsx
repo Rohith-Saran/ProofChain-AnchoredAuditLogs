@@ -53,7 +53,7 @@ export const AttackButton: React.FC<AttackButtonProps> = ({
               fontWeight: 700,
               padding: "2px 8px",
               borderRadius: "6px",
-              background: attack.id === 6 ? "rgba(59, 76, 192, 0.12)" : "rgba(0,0,0,0.06)",
+              background: attack.id === 6 ? "color-mix(in srgb, var(--chain) 12%, transparent)" : "rgba(0,0,0,0.06)",
               color: attack.id === 6 ? "var(--chain)" : "var(--ink)",
             }}
           >
@@ -121,7 +121,7 @@ export const AttackButton: React.FC<AttackButtonProps> = ({
               padding: "8px 12px",
               borderRadius: "8px",
               border: "1px solid var(--chain)",
-              background: "rgba(59, 76, 192, 0.08)",
+              background: "color-mix(in srgb, var(--chain) 8%, transparent)",
               color: "var(--chain)",
               fontSize: "0.85rem",
               fontWeight: 600,

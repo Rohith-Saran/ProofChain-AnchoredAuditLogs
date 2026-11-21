@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-d
 import { useStore } from "./store/useStore";
 import { useDemoShortcuts } from "./hooks/useDemoShortcuts";
 import { StatusBar } from "./components/StatusBar";
+import { RainBackground } from "./components/RainBackground";
 import { LandingPage } from "./pages/LandingPage";
 import { LiveConsolePage } from "./pages/LiveConsolePage";
 import { AttackConsolePage } from "./pages/AttackConsolePage";
@@ -23,10 +24,12 @@ const DashboardApp: React.FC = () => {
 
   return (
     <div className="dashboard-shell" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* Live ASCII rain behind every page. */}
+      <RainBackground />
       <StatusBar />
       {/* key={pathname} forces a remount per route, so main's fadeInUp animation
           (see index.css) actually replays on navigation instead of only once. */}
-      <main style={{ flex: 1 }} key={location.pathname}>
+      <main style={{ flex: 1, position: "relative" }} key={location.pathname}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/live" element={<LiveConsolePage />} />

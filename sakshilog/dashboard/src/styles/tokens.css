@@ -1,17 +1,19 @@
 :root {
-  --bg: #f4ebe0;          /* cream paper */
-  --surface: #fbf6ee;
-  --ink: #1f1a17;
-  --ink-muted: #6b5f55;
-  --line: #e1d3c1;
+  /* Light theme: warm paper, same orange accent family as the Overview hero. */
+  --bg: #faf6f1;
+  --surface: #ffffff;
+  --ink: #1a120c;
+  --ink-muted: #6f625a;
+  --line: #eadfd5;
   --ok: #2f7d4f;          /* OK, anchored */
-  --warn: #c7861a;        /* UNANCHORED_WINDOW */
-  --bad: #c0392b;         /* tampered verdicts */
-  --chain: #3b4cc0;       /* blockchain / anchors */
-  --radius: 14px;
-  --shadow: 0 1px 0 var(--line), 0 12px 30px -18px rgba(60,40,20,.35);
+  --warn: #a37400;        /* UNANCHORED_WINDOW (gold, kept apart from the orange accent) */
+  --bad: #cf1f3f;         /* tampered verdicts (crimson, kept apart from the orange accent) */
+  --chain: #c2410c;       /* primary accent / blockchain (deeper orange for contrast on light) */
+  --radius: 18px;
+  --shadow: 0 1px 0 var(--line), 0 14px 32px -20px rgba(70,35,10,.35);
   --font-ui: "Inter", system-ui, -apple-system, sans-serif;
-  --font-display: "Space Grotesk", "Inter", sans-serif;
+  /* Instrument Serif ships one weight (400); font-synthesis below keeps it from being faux-bolded. */
+  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --font-size-base: 16px;
@@ -34,18 +36,19 @@ body.demo-mode,
   --font-size-3xl: 44px;
 }
 
+/* Dark theme (default): the Overview hero's palette — warm near-black with an orange accent. */
 body.dark-mode,
 .dark-mode {
-  --bg: #1b1713;           /* dark paper */
-  --surface: #241f1a;
-  --ink: #f3ebe0;
-  --ink-muted: #ab9d8f;
-  --line: #3a332c;
+  --bg: #0a0400;
+  --surface: #15100c;
+  --ink: #f7f1ec;
+  --ink-muted: #a39890;
+  --line: #2e241d;
   --ok: #4fbf82;           /* OK, anchored */
-  --warn: #e3a23f;         /* UNANCHORED_WINDOW */
-  --bad: #e3604c;          /* tampered verdicts */
-  --chain: #7c8bf0;        /* blockchain / anchors */
-  --shadow: 0 1px 0 var(--line), 0 12px 30px -18px rgba(0, 0, 0, 0.7);
+  --warn: #f2c94c;         /* UNANCHORED_WINDOW */
+  --bad: #ff4d5e;          /* tampered verdicts */
+  --chain: #ff7614;        /* primary accent / blockchain */
+  --shadow: 0 1px 0 var(--line), 0 18px 40px -22px rgba(0, 0, 0, 0.85);
 }
 
 body.dark-mode {
@@ -59,6 +62,7 @@ body.dark-mode {
 }
 
 body {
+  font-synthesis: none;
   background-color: var(--bg);
   color: var(--ink);
   font-family: var(--font-ui);

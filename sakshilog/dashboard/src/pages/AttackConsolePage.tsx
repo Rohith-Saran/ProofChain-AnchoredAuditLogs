@@ -70,7 +70,7 @@ export const AttackConsolePage: React.FC = () => {
               padding: "8px 16px",
               borderRadius: "8px",
               border: "1px solid var(--chain)",
-              background: "rgba(59, 76, 192, 0.08)",
+              background: "color-mix(in srgb, var(--chain) 8%, transparent)",
               color: "var(--chain)",
               fontSize: "0.85rem",
               fontWeight: 600,
@@ -86,7 +86,7 @@ export const AttackConsolePage: React.FC = () => {
       {lastAttackResult && (
         <div
           style={{
-            background: lastAttackResult.success ? "rgba(47, 125, 79, 0.08)" : "rgba(192, 57, 43, 0.08)",
+            background: lastAttackResult.success ? "color-mix(in srgb, var(--ok) 8%, transparent)" : "color-mix(in srgb, var(--bad) 8%, transparent)",
             border: `2px solid ${lastAttackResult.success ? "var(--ok)" : "var(--bad)"}`,
             borderRadius: "var(--radius)",
             padding: "16px 20px",

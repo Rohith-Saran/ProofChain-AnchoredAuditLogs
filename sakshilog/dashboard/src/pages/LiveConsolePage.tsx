@@ -80,7 +80,7 @@ export const LiveConsolePage: React.FC = () => {
               padding: "8px 14px",
               borderRadius: "8px",
               border: "1px solid var(--chain)",
-              background: "rgba(59, 76, 192, 0.08)",
+              background: "color-mix(in srgb, var(--chain) 8%, transparent)",
               color: "var(--chain)",
               fontWeight: 600,
               fontSize: "0.85rem",
@@ -118,7 +118,7 @@ export const LiveConsolePage: React.FC = () => {
       {isAnchorSilent && (
         <div
           style={{
-            background: "rgba(192, 57, 43, 0.12)",
+            background: "color-mix(in srgb, var(--bad) 12%, transparent)",
             border: "2px solid var(--bad)",
             borderRadius: "var(--radius)",
             padding: "16px 20px",
@@ -208,10 +208,10 @@ export const LiveConsolePage: React.FC = () => {
               Auditor Verdict Summary
             </h4>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "0.85rem", fontFamily: "var(--font-mono)" }}>
-              <div style={{ padding: "8px", borderRadius: "6px", background: "rgba(47, 125, 79, 0.1)", color: "var(--ok)", fontWeight: 600 }}>
+              <div style={{ padding: "8px", borderRadius: "6px", background: "color-mix(in srgb, var(--ok) 10%, transparent)", color: "var(--ok)", fontWeight: 600 }}>
                 OK: {verification?.summary?.verdicts?.OK ?? 6}
               </div>
-              <div style={{ padding: "8px", borderRadius: "6px", background: "rgba(192, 57, 43, 0.1)", color: "var(--bad)", fontWeight: 600 }}>
+              <div style={{ padding: "8px", borderRadius: "6px", background: "color-mix(in srgb, var(--bad) 10%, transparent)", color: "var(--bad)", fontWeight: 600 }}>
                 Tampered: {verification?.summary?.tamperedEntries ?? 0}
               </div>
             </div>

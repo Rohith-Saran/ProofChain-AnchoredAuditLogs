@@ -77,7 +77,7 @@ export const BarChart: React.FC<BarChartProps> = ({ data, title = "Detection Rat
                   width={barWidth}
                   height={Math.max(baselineHeight, 2)}
                   rx="3"
-                  fill={item.baseline === 0 ? "rgba(192, 57, 43, 0.3)" : "var(--bad)"}
+                  style={{ fill: item.baseline === 0 ? "color-mix(in srgb, var(--bad) 30%, transparent)" : "var(--bad)" }}
                   stroke="var(--bad)"
                   strokeWidth="1"
                 />

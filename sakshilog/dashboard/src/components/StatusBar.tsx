@@ -38,7 +38,9 @@ export const StatusBar: React.FC = () => {
     <header
       className="dashboard-header"
       style={{
-        background: "var(--surface)",
+        background: "color-mix(in srgb, var(--surface) 80%, transparent)",
+        backdropFilter: "blur(14px)",
+        WebkitBackdropFilter: "blur(14px)",
         borderBottom: "1px solid var(--line)",
         padding: "12px 24px",
         display: "flex",
@@ -85,11 +87,11 @@ export const StatusBar: React.FC = () => {
                 to={link.to}
                 style={{
                   padding: "6px 12px",
-                  borderRadius: "8px",
                   fontSize: "0.875rem",
                   fontWeight: isActive ? 600 : 500,
                   color: isActive ? "var(--ink)" : "var(--ink-muted)",
-                  background: isActive ? "rgba(0,0,0,0.06)" : "transparent",
+                  background: isActive ? "color-mix(in srgb, var(--chain) 16%, transparent)" : "transparent",
+                  borderRadius: "999px",
                   transition: "all 0.15s ease",
                 }}
               >

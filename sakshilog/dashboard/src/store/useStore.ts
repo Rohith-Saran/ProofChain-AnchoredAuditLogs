@@ -4,8 +4,8 @@ import { apiClient, describeAiError, isMockMode, setMockMode } from "../api/clie
 import { realtime } from "../api/socket";
 import { MOCK_LOGS, MOCK_BATCHES, MOCK_VERIFICATION, MOCK_RISK, ATTACKS } from "../mock/data";
 
-// A stored choice wins; otherwise follow the OS. Storage and matchMedia can both be missing
-// or throw (private windows, blocked site data, test environments), so neither may crash the app.
+// A stored choice wins; otherwise dark. Storage can be missing or throw (private windows,
+// blocked site data, test environments), so it may not crash the app.
 function initialDarkMode(): boolean {
   try {
     const stored = localStorage.getItem("sakshilog-dark-mode");
@@ -13,7 +13,8 @@ function initialDarkMode(): boolean {
   } catch {
     // fall through to the OS preference
   }
-  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  // Default to dark: the site's look (and the Overview hero) is designed dark-first.
+  return true;
 }
 
 interface AppState {

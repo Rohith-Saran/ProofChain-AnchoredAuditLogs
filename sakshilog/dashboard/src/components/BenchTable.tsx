@@ -57,7 +57,7 @@ export const BenchTable: React.FC<BenchTableProps> = ({ attacks }) => {
                 key={att.id}
                 style={{
                   borderBottom: "1px solid var(--line)",
-                  background: isZeroBaseline ? "rgba(192, 57, 43, 0.04)" : "transparent",
+                  background: isZeroBaseline ? "color-mix(in srgb, var(--bad) 4%, transparent)" : "transparent",
                 }}
               >
                 <td style={{ padding: "12px 16px", fontWeight: 600, fontFamily: "var(--font-mono)" }}>

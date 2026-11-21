@@ -27,7 +27,7 @@ export const LogBlock: React.FC<LogBlockProps> = ({
       onClick={() => onSelect?.(entry.seq)}
       className={`log-block-card ${isSelected ? "selected" : ""}`}
       style={{
-        background: isSelected ? "rgba(59, 76, 192, 0.05)" : "var(--surface)",
+        background: isSelected ? "color-mix(in srgb, var(--chain) 5%, transparent)" : "var(--surface)",
         border: `1px solid ${isSelected ? "var(--chain)" : "var(--line)"}`,
         borderLeft: isTampered ? "4px solid var(--bad)" : isSelected ? "4px solid var(--chain)" : "1px solid var(--line)",
         borderRadius: "var(--radius)",

@@ -55,7 +55,7 @@ export const AttackStepPage: React.FC = () => {
                 fontSize: "0.85rem",
                 fontWeight: 700,
                 color: "var(--chain)",
-                background: "rgba(59, 76, 192, 0.1)",
+                background: "color-mix(in srgb, var(--chain) 10%, transparent)",
                 padding: "3px 10px",
                 borderRadius: "6px",
               }}
@@ -106,7 +106,7 @@ export const AttackStepPage: React.FC = () => {
               padding: "8px 16px",
               borderRadius: "8px",
               border: "1px solid var(--bad)",
-              background: "rgba(192, 57, 43, 0.08)",
+              background: "color-mix(in srgb, var(--bad) 8%, transparent)",
               color: "var(--bad)",
               fontWeight: 700,
               fontSize: "0.85rem",
@@ -126,7 +126,7 @@ export const AttackStepPage: React.FC = () => {
       {lastAttackResult && lastAttackResult.attackId === selectedAttack.id && (
         <div
           style={{
-            background: "rgba(192, 57, 43, 0.08)",
+            background: "color-mix(in srgb, var(--bad) 8%, transparent)",
             border: "1px solid var(--bad)",
             borderRadius: "var(--radius)",
             padding: "12px 18px",
