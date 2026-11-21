@@ -4,7 +4,7 @@ import type { CollectorLogEntry, CollectorBatch } from "./db.ts";
 import * as path from "node:path";
 
 const PORT = Number(process.env.PORT || process.env.COLLECTOR_PORT || 4002);
-const DB_PATH = process.env.COLLECTOR_DB_PATH || path.resolve(process.cwd(), "collector.db");
+const DB_PATH = process.env.COLLECTOR_DB_PATH || path.resolve(import.meta.dirname, "../collector.db");
 
 export function createCollectorApp(dbFilePath = DB_PATH) {
   const db = new CollectorDB(dbFilePath);

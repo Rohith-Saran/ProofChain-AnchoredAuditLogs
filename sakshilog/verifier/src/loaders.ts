@@ -66,8 +66,10 @@ export interface VerifierPaths {
 }
 
 export function defaultPaths(): VerifierPaths {
+  const relVictim = path.resolve(import.meta.dirname, "../../agent/victim.db");
+  const relCollector = path.resolve(import.meta.dirname, "../../collector/collector.db");
   return {
-    victimDbPath: process.env.VICTIM_DB_PATH || path.resolve(process.cwd(), "../agent/victim.db"),
-    collectorDbPath: process.env.COLLECTOR_DB_PATH || path.resolve(process.cwd(), "../collector/collector.db"),
+    victimDbPath: process.env.VICTIM_DB_PATH || (fs.existsSync(relVictim) ? relVictim : path.resolve(process.cwd(), "../agent/victim.db")),
+    collectorDbPath: process.env.COLLECTOR_DB_PATH || (fs.existsSync(relCollector) ? relCollector : path.resolve(process.cwd(), "../collector/collector.db")),
   };
 }

@@ -9,7 +9,7 @@ import { LoadGenerator, generateRandomAction } from "./loadGenerator.ts";
 import * as path from "node:path";
 
 const PORT = Number(process.env.PORT || process.env.AGENT_PORT || 4001);
-const DB_PATH = process.env.DB_PATH || path.resolve(process.cwd(), "victim.db");
+const DB_PATH = process.env.DB_PATH || path.resolve(import.meta.dirname, "../victim.db");
 const COLLECTOR_URL = process.env.COLLECTOR_URL || "http://127.0.0.1:4002";
 const ANCHOR_INTERVAL_MS = Number(process.env.ANCHOR_INTERVAL_MS || 5000);
 

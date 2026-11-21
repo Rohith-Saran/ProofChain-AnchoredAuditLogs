@@ -1,16 +1,20 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
-// Quai Network support (sponsor requirement - see implementation/PROGRESS.md, M1 log and
-// implementation/SakshiLog_16hr_Implementation_Plan.pdf, Phase 5): Quai's own Hardhat
-// plugins, loaded the same way hardhat-toolbox is above. @quai/quais-upgrades patches
-// hardhat-upgrades for Quai's sharded address space; @quai/hardhat-deploy-metadata adds
-// the `deployMetadata` helper scripts/deployQuai.ts uses to push IPFS metadata for
-// Quaiscan verification. Both come from Quai's own dominant-strategies/hardhat-example.
-import "@quai/quais-upgrades";
-import "@quai/hardhat-deploy-metadata";
-import * as dotenv from "dotenv";
 
-dotenv.config();
+// Optional dotenv loader
+try {
+  require("dotenv").config();
+} catch {
+  // dotenv is optional
+}
+
+// Optional Quai Network plugins (loaded if installed, skipped for localhost)
+try {
+  require("@quai/quais-upgrades");
+  require("@quai/hardhat-deploy-metadata");
+} catch {
+  // Quai plugins are only required when deploying to Quai Network
+}
 
 const config: HardhatUserConfig = {
   solidity: {

@@ -9,7 +9,6 @@
  * The model's output is still untrusted: the schema guarantees its shape, not its honesty —
  * each feature runs its own code-side checks afterwards, whichever provider answered.
  */
-import Anthropic from "@anthropic-ai/sdk";
 import type { RawClaim } from "./investigator.ts";
 
 export type Provider = "anthropic" | "groq";
@@ -76,12 +75,20 @@ function parseJson<T>(text: string): T {
 
 // ---------------------------------------------------------------- Anthropic
 
-let anthropic: Anthropic | null = null;
+let anthropic: any = null;
 
 async function callAnthropic<T>({ system, user, schema, effort, maxTokens = 16000 }: StructuredCall): Promise<T> {
-  if (!anthropic) anthropic = new Anthropic();
+  let AnthropicModule: any;
+  try {
+    const mod = await import("@anthropic-ai/sdk");
+    AnthropicModule = mod.default || mod;
+  } catch {
+    throw new AiNotConfiguredError("@anthropic-ai/sdk is not installed. Use GROQ_API_KEY or run npm install.");
+  }
 
-  let response: Anthropic.Beta.BetaMessage;
+  if (!anthropic) anthropic = new AnthropicModule();
+
+  let response: any;
   try {
     // Forced tool_choice isn't used: current Claude models reject it. output_config.format
     // gives the same structured guarantee.
@@ -95,11 +102,11 @@ async function callAnthropic<T>({ system, user, schema, effort, maxTokens = 1600
       output_config: { format: { type: "json_schema", schema }, effort },
       messages: [{ role: "user", content: user }],
     });
-  } catch (err) {
-    if (err instanceof Anthropic.AuthenticationError) {
+  } catch (err: any) {
+    if (err?.name === "AuthenticationError" || (AnthropicModule.AuthenticationError && err instanceof AnthropicModule.AuthenticationError)) {
       throw new AiNotConfiguredError(`Anthropic API rejected the credentials: ${err.message}`);
     }
-    if (err instanceof Anthropic.APIError) {
+    if (err?.name === "APIError" || (AnthropicModule.APIError && err instanceof AnthropicModule.APIError)) {
       throw new AiModelError(`Anthropic API error ${err.status ?? ""}: ${err.message}`.trim());
     }
     throw new AiModelError(`Anthropic API unreachable: ${(err as Error).message}`);
@@ -108,9 +115,9 @@ async function callAnthropic<T>({ system, user, schema, effort, maxTokens = 1600
   if (response.stop_reason === "refusal") throw new AiRefusalError("The model declined this request");
   if (response.stop_reason === "max_tokens") throw new AiTruncatedError("The model's reply was cut off before it finished");
 
-  const text = response.content
-    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
-    .map((b) => b.text)
+  const text = (response.content || [])
+    .filter((b: any) => b.type === "text")
+    .map((b: any) => b.text)
     .join("");
   return parseJson<T>(text);
 }
